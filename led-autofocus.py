@@ -6,6 +6,12 @@ import numpy as np
 import time
 from ImageHandler import ImageHandler
 
+
+#TODO: Ensure camera feed opens up a separate window
+#TODO: Fix aspect ratio of the focus position plot window
+#TODO: Implement connection to the pymm-core
+
+
 # enable emulation
 import os
 os.environ["PYLON_CAMEMU"] = "1"
@@ -46,13 +52,13 @@ class AutofocusApp(QWidget):
         self.layout.addLayout(self.button_group, 1, 0, 1, 2)
         self.layout.addWidget(self.plot_canvas, 2, 0, 4, 2)
         self.layout.addWidget(self.show_camera_feed_button, 6, 0, 1, 2)
-        self.grid_layout = QGridLayout()
 
-        self.grid_layout.addWidget(self.video_view, 0, 0, 2, 1)
-        self.grid_layout.addWidget(self.x_canvas, 0, 1, 1, 1)
-        self.grid_layout.addWidget(self.y_canvas, 1, 1, 1, 1)
+        # self.grid_layout = QGridLayout()
+        # self.grid_layout.addWidget(self.video_view, 0, 0, 2, 1)
+        # self.grid_layout.addWidget(self.x_canvas, 0, 1, 1, 1)
+        # self.grid_layout.addWidget(self.y_canvas, 1, 1, 1, 1)
+        # self.layout.addLayout(self.grid_layout, 7, 0, 2, 2)
 
-        self.layout.addLayout(self.grid_layout, 7, 0, 2, 2)
         self.setLayout(self.layout)
 
         self.initialise_button.clicked.connect(self._on_initialise_button_clicked)
