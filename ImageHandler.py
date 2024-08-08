@@ -13,8 +13,21 @@ class ImageHandler(py.ImageEventHandler):
         super().__init__()
         self.img = np.zeros((cam.Height.Value, cam.Width.Value), dtype=np.uint8)
 
+        # allocate space for rows and cols projections
+        self.x_projection = np.zeros(cam.Width.Value, dtype=np.uint8)
+        self.y_projection = np.zeros(cam.Height.Value, dtype=np.uint8)
+
+        # allocate space for x and y fits
+        self.x_fit = np.zeros(4, dtype=np.float32)
+        self.y_fit = np.zeros(4, dtype=np.float32)
+
+        # allocate space for timestamp
+        self.timestamp = np.zeros(1, dtype=np.float32)
+
+
     def OnImageGrabbed(self, camera, grabResult):
-        """ we get called on every image
+        """ from pylon demo - adapted for my needs
+            we get called on every image
             !! this code is run in a pylon thread context
             always wrap your code in the try .. except to capture
             errors inside the grabbing as this can't be properly reported from
@@ -23,11 +36,10 @@ class ImageHandler(py.ImageEventHandler):
         try:
             if grabResult.GrabSucceeded():
                 # check image contents
-                img = grabResult.Array
-                now = datetime.datetime.now()
                 # print(f"Image grabbed at {now.time()}, shape: {img.shape}")
                 # print("New image grabbed at", now.time())
-                self.img = img
+                self.img = grabResult.Array
+                self.timestamp = grabResult.TimeStamp
             else:
                 raise RuntimeError("Grab Failed")
         except Exception as e:

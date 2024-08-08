@@ -5,6 +5,11 @@ from pyqtgraph.Qt import QtCore
 import numpy as np
 import time
 from ImageHandler import ImageHandler
+import fit_testing
+
+# import dashline style
+from qtpy.QtCore import Qt
+
 
 
 #TODO: Ensure camera feed opens up a separate window
@@ -22,17 +27,23 @@ class AutofocusApp(QWidget):
         super().__init__()
         self.setGeometry(100, 100, 600, 500)
         self.setWindowTitle("Autofocus App")
+
+        # Buttons
         self.initialise_button = QPushButton("Initialise camera")
         self.load_config_button = QPushButton("Load configuration")
-
         self.monitor_button = QPushButton("Monitor")
         self.lock_button = QPushButton("Lock")
-
         self.show_camera_feed_button = QPushButton("Show camera feed")
 
+        # Lock and monitor buttons need to be checkable
+        self.lock_button.setCheckable(True)
+        self.monitor_button.setCheckable(True)
+
+        # Plot widget for focus position
         self.plot_canvas = pg.PlotWidget(background=None)
+
+        # Video widget for camera feed and projections
         self.video_view = pg.PlotWidget(background=None, visible=False)
-        # self.video_view = pg.GraphicsView()
         self.video_canvas = pg.ImageItem()
         self.video_view.hideAxis('left')
         self.video_view.hideAxis('bottom')
@@ -42,8 +53,8 @@ class AutofocusApp(QWidget):
         self.x_canvas = pg.PlotWidget()
         self.y_canvas = pg.PlotWidget()
 
-        self.layout = QGridLayout()
         # add to layout
+        self.layout = QGridLayout()
         self.layout.addWidget(self.initialise_button, 0, 0)
         self.layout.addWidget(self.load_config_button, 0, 1)
         self.button_group = QHBoxLayout()
@@ -53,11 +64,11 @@ class AutofocusApp(QWidget):
         self.layout.addWidget(self.plot_canvas, 2, 0, 4, 2)
         self.layout.addWidget(self.show_camera_feed_button, 6, 0, 1, 2)
 
-        # self.grid_layout = QGridLayout()
-        # self.grid_layout.addWidget(self.video_view, 0, 0, 2, 1)
-        # self.grid_layout.addWidget(self.x_canvas, 0, 1, 1, 1)
-        # self.grid_layout.addWidget(self.y_canvas, 1, 1, 1, 1)
-        # self.layout.addLayout(self.grid_layout, 7, 0, 2, 2)
+        self.grid_layout = QGridLayout()
+        self.grid_layout.addWidget(self.video_view, 0, 0, 2, 1)
+        self.grid_layout.addWidget(self.x_canvas, 0, 1, 1, 1)
+        self.grid_layout.addWidget(self.y_canvas, 1, 1, 1, 1)
+        self.layout.addLayout(self.grid_layout, 7, 0, 2, 2)
 
         self.setLayout(self.layout)
 
@@ -70,7 +81,9 @@ class AutofocusApp(QWidget):
 
         self.curve = self.plot_canvas.plot(pen='y')
         self.x_plot = self.x_canvas.plot(pen='r')
+        self.x_fit_plot = self.x_canvas.plot(pen=pg.mkPen('y', style=Qt.DashLine))
         self.y_plot = self.y_canvas.plot(pen='r')
+        self.y_fit_plot = self.y_canvas.plot(pen=pg.mkPen('y', style=Qt.DashLine))
 
         self.data = []
         self.time = []
@@ -79,6 +92,10 @@ class AutofocusApp(QWidget):
 
 
     def _on_initialise_button_clicked(self):
+        # Print the status of the monitor and lock buttons
+        print(f"Monitor button status: {self.monitor_button.isChecked()}")
+        print(f"Lock button status: {self.lock_button.isChecked()}")
+
         self.camera = pylon.InstantCamera(pylon.TlFactory.GetInstance().CreateFirstDevice())
         self.camera.Open()
         self.camera.PixelFormat.SetValue('Mono8')
@@ -91,37 +108,43 @@ class AutofocusApp(QWidget):
         self.video_view.setAspectLocked(True)
         print(self.camera.Height.Value)
         print(self.camera.Width.Value)
-
-
-    def _on_lock_button_clicked(self):
-        # to be written.
-        pass
-    def _on_monitor_button_clicked(self):
-        # self.camera.StartGrabbing(pylon.GrabStrategy_OneByOne)
         # instantiate callback handler
         self.CameraHandler = ImageHandler(self.camera)
         # register with the pylon loop
         self.camera.RegisterImageEventHandler(self.CameraHandler, pylon.RegistrationMode_ReplaceAll, pylon.Cleanup_None)
         # fetch some images with background loop
-        self.camera.StartGrabbing(pylon.GrabStrategy_OneByOne, pylon.GrabLoop_ProvidedByInstantCamera)
-        print('Free-run acquisition started!')
 
+    def _on_lock_button_clicked(self):
+        # to be written.
+        pass
 
-        self.timer.start(100)
-
+    def _on_monitor_button_clicked(self):
+        # self.camera.StartGrabbing(pylon.GrabStrategy_OneByOne)
+        if self.monitor_button.isChecked():
+            self.camera.StartGrabbing(pylon.GrabStrategy_OneByOne, pylon.GrabLoop_ProvidedByInstantCamera)
+            print('Free-run acquisition started!')
+            self.timer.start(100)
+            # Clear the graph
+            self.data = []
+            self.time = []
+        if not self.monitor_button.isChecked():
+            self.camera.StopGrabbing()
+            print('Free-run acquisition stopped!')
+            self.timer.stop()
 
 
     def update(self):
-        # grab = self.camera.RetrieveResult(150)
-        # img = grab.GetArray()
-        img = self.CameraHandler.img
+        # img = self.CameraHandler.img
+
+        x, y = np.meshgrid(np.linspace(-1, 1, 100), np.linspace(-1, 1, 100))
+        img = fit_testing.make_astigmatic_psf(x, y, np.random.rand(), np.random.rand())
 
         # calculate projection over columns
         x_projection = img.mean(axis=0)
         y_projection = img.mean(axis=1)
 
         # add random integer to the data
-        img = img + np.random.randint(0, 255, img.shape)
+        # img = img + np.random.randint(0, 255, img.shape)
 
         self.data.append(img.mean())
         self.time.append(self.ptr)
@@ -130,6 +153,12 @@ class AutofocusApp(QWidget):
         self.curve.setData(self.time, self.data)
         self.x_plot.setData(x_projection)
         self.y_plot.setData(y_projection)
+
+        x_fit = fit_testing.fit_gaussian(np.linspace(0, x_projection.shape[0], x_projection.shape[0]), x_projection, [0, 0, 0.5, 1])
+        y_fit = fit_testing.fit_gaussian(np.linspace(0, y_projection.shape[0], y_projection.shape[0]), y_projection, [0, 0, 0.5, 1])
+
+        self.x_fit_plot.setData(fit_testing.Gaussian1D(np.linspace(0, x_projection.shape[0], x_projection.shape[0]), *x_fit))
+        self.y_fit_plot.setData(fit_testing.Gaussian1D(np.linspace(0, y_projection.shape[0], y_projection.shape[0]), *y_fit))
 
         # self.plot_canvas.enableAutoRange('xy', True)
         # self.x_canvas.enableAutoRange('xy', True)
