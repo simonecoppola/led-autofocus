@@ -25,7 +25,7 @@ os.environ["PYLON_CAMEMU"] = "1"
 class AutofocusApp(QWidget):
     def __init__(self):
         super().__init__()
-        self.setGeometry(100, 100, 600, 500)
+        self.setGeometry(100, 100, 850, 700)
         self.setWindowTitle("Autofocus App")
 
         # Buttons
@@ -41,6 +41,7 @@ class AutofocusApp(QWidget):
 
         # Plot widget for focus position
         self.plot_canvas = pg.PlotWidget(background=None)
+        self.plot_canvas.setMinimumHeight(200)
 
         # Video widget for camera feed and projections
         self.video_view = pg.PlotWidget(background=None, visible=False)
@@ -50,18 +51,19 @@ class AutofocusApp(QWidget):
         self.video_view.setMouseEnabled(x=False, y=False)
         self.video_view.addItem(self.video_canvas)
 
-        self.x_canvas = pg.PlotWidget()
-        self.y_canvas = pg.PlotWidget()
+        self.x_canvas = pg.PlotWidget(background=None)
+        self.y_canvas = pg.PlotWidget(background=None)
 
         # add to layout
         self.layout = QGridLayout()
-        self.layout.addWidget(self.initialise_button, 0, 0)
-        self.layout.addWidget(self.load_config_button, 0, 1)
+        self.layout.addWidget(self.load_config_button, 0, 0)
+        self.layout.addWidget(self.initialise_button, 0, 1)
         self.button_group = QHBoxLayout()
         self.button_group.addWidget(self.monitor_button)
         self.button_group.addWidget(self.lock_button)
         self.layout.addLayout(self.button_group, 1, 0, 1, 2)
         self.layout.addWidget(self.plot_canvas, 2, 0, 4, 2)
+
         self.layout.addWidget(self.show_camera_feed_button, 6, 0, 1, 2)
 
         self.grid_layout = QGridLayout()
@@ -85,6 +87,8 @@ class AutofocusApp(QWidget):
         self.y_plot = self.y_canvas.plot(pen='r')
         self.y_fit_plot = self.y_canvas.plot(pen=pg.mkPen('y', style=Qt.DashLine))
 
+
+
         self.data = []
         self.time = []
         self.ptr = 0
@@ -98,6 +102,15 @@ class AutofocusApp(QWidget):
 
         self.camera = pylon.InstantCamera(pylon.TlFactory.GetInstance().CreateFirstDevice())
         self.camera.Open()
+        self.camera.Width.Value = 1528
+        self.camera.Height.Value = 1528
+
+        self.camera.TestImageSelector.Value = "Off"
+        # Enable custom test images
+        self.camera.ImageFileMode.Value = "On"
+        # Load custom test image from disk
+        self.camera.ImageFilename.Value = 'C:\\Users\\u1870329\\Documents\\GitHub\\led-autofocus\\test-data\\'
+
         self.camera.PixelFormat.SetValue('Mono8')
         self.exposure_time_ms = 100
         self.camera.ExposureTime.SetValue(self.exposure_time_ms * 1000)
@@ -123,7 +136,7 @@ class AutofocusApp(QWidget):
         if self.monitor_button.isChecked():
             self.camera.StartGrabbing(pylon.GrabStrategy_OneByOne, pylon.GrabLoop_ProvidedByInstantCamera)
             print('Free-run acquisition started!')
-            self.timer.start(100)
+            self.timer.start(200)
             # Clear the graph
             self.data = []
             self.time = []
@@ -134,10 +147,11 @@ class AutofocusApp(QWidget):
 
 
     def update(self):
-        # img = self.CameraHandler.img
+        img = self.CameraHandler.img
+        self.video_canvas.setImage(img)
 
-        x, y = np.meshgrid(np.linspace(-1, 1, 100), np.linspace(-1, 1, 100))
-        img = fit_testing.make_astigmatic_psf(x, y, np.random.rand(), np.random.rand())
+        # x, y = np.meshgrid(np.linspace(-1, 1, 100), np.linspace(-1, 1, 100))
+        # img = fit_testing.make_astigmatic_psf(x, y, np.random.rand(), np.random.rand())
 
         # calculate projection over columns
         x_projection = img.mean(axis=0)
@@ -154,8 +168,11 @@ class AutofocusApp(QWidget):
         self.x_plot.setData(x_projection)
         self.y_plot.setData(y_projection)
 
-        x_fit = fit_testing.fit_gaussian(np.linspace(0, x_projection.shape[0], x_projection.shape[0]), x_projection, [0, 0, 0.5, 1])
-        y_fit = fit_testing.fit_gaussian(np.linspace(0, y_projection.shape[0], y_projection.shape[0]), y_projection, [0, 0, 0.5, 1])
+        guessx = [0, 800, 300, 20000]
+        guessy = [0, 800, 300, 20000]
+
+        x_fit = fit_testing.fit_gaussian(np.linspace(0, x_projection.shape[0], x_projection.shape[0]), x_projection, guessx)
+        y_fit = fit_testing.fit_gaussian(np.linspace(0, y_projection.shape[0], y_projection.shape[0]), y_projection, guessy)
 
         self.x_fit_plot.setData(fit_testing.Gaussian1D(np.linspace(0, x_projection.shape[0], x_projection.shape[0]), *x_fit))
         self.y_fit_plot.setData(fit_testing.Gaussian1D(np.linspace(0, y_projection.shape[0], y_projection.shape[0]), *y_fit))
@@ -164,7 +181,6 @@ class AutofocusApp(QWidget):
         # self.x_canvas.enableAutoRange('xy', True)
         # self.y_canvas.enableAutoRange('xy', True)
 
-        self.video_canvas.setImage(img)
         self.ptr += 1
 
 
