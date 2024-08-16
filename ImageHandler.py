@@ -39,6 +39,8 @@ class ImageHandler(py.ImageEventHandler):
                 # print(f"Image grabbed at {now.time()}, shape: {img.shape}")
                 # print("New image grabbed at", now.time())
                 self.img = grabResult.Array
+                self.x_projection = self.img.sum(axis=0)
+                self.y_projection = self.img.sum(axis=1)
                 self.timestamp = grabResult.TimeStamp
             else:
                 raise RuntimeError("Grab Failed")
