@@ -1,4 +1,5 @@
-from qtpy.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QSlider, QHBoxLayout, QGridLayout
+from qtpy.QtWidgets import (QApplication, QWidget, QVBoxLayout, QPushButton,
+                            QLabel, QLineEdit, QHBoxLayout, QGridLayout)
 import pyqtgraph as pg
 from pypylon import pylon
 from pyqtgraph.Qt import QtCore
@@ -6,9 +7,10 @@ import numpy as np
 import time
 from ImageHandler import ImageHandler
 import fit_testing
-
-# import dashline style
+import json
 from qtpy.QtCore import Qt
+from pymmcore_plus import CMMCorePlus
+
 
 #TODO: Implement connection to the pymm-core
 
@@ -28,6 +30,13 @@ class AutofocusApp(QWidget):
         self.setGeometry(100, 100, 850, 700)
         self.setWindowTitle("Autofocus App")
 
+        # LOAD SETTINGS
+        with open("autofocus_config.json", "r") as f:
+            self.settings = json.load(f)
+
+        # PYMMCORE
+        self.mmc = None
+
         # BUTTONS
         self.initialise_button = QPushButton("Initialise camera")
         self.load_config_button = QPushButton("Load configuration")
@@ -35,6 +44,7 @@ class AutofocusApp(QWidget):
         self.lock_button = QPushButton("Definitely focus?")
         self.lock_button.setStyleSheet("font: italic;")
         self.show_camera_feed_button = QPushButton("Show camera feed")
+        self.link_to_pymmcore_button = QPushButton("Link to PyMMCore")
 
         # Lock and monitor buttons need to be checkable
         self.lock_button.setCheckable(True)
@@ -58,8 +68,14 @@ class AutofocusApp(QWidget):
 
         # LAYOUT
         self.layout = QGridLayout()
-        self.layout.addWidget(self.load_config_button, 0, 0)
-        self.layout.addWidget(self.initialise_button, 0, 1)
+
+
+        button_group = QHBoxLayout()
+        button_group.addWidget(self.initialise_button)
+        button_group.addWidget(self.load_config_button)
+        button_group.addWidget(self.link_to_pymmcore_button)
+        self.layout.addLayout(button_group, 0, 0, 1, 2)
+
         self.button_group = QHBoxLayout()
         self.button_group.addWidget(self.monitor_button)
         self.button_group.addWidget(self.lock_button)
@@ -99,6 +115,7 @@ class AutofocusApp(QWidget):
         self.guessx = [0, 800, 300, 20000]
         self.guessy = [0, 800, 300, 20000]
         self.current_z = 0
+        self.last_movement = 0
 
         # CONNECT ACTIONS
         self.initialise_button.clicked.connect(self._on_initialise_button_clicked)
@@ -106,6 +123,9 @@ class AutofocusApp(QWidget):
         self.lock_button.clicked.connect(self._on_lock_button_clicked)
         self.show_camera_feed_button.clicked.connect(self._on_show_camera_feed_button_clicked)
 
+
+    def _on_link_to_pymmcore_button_clicked(self):
+        self.mmc = CMMCorePlus.instance()
 
 
     def _on_initialise_button_clicked(self):
@@ -115,9 +135,10 @@ class AutofocusApp(QWidget):
 
         self.camera = pylon.InstantCamera(pylon.TlFactory.GetInstance().CreateFirstDevice())
         self.camera.Open()
-        self.camera.Width.Value = 1528
-        self.camera.Height.Value = 1528
 
+        # THIS IS ONLY WHEN USING FAKE CAMERA - WILL NEED TO BE DELETED
+        self.camera.Width.Value = 1624
+        self.camera.Height.Value = 1626
         self.camera.TestImageSelector.Value = "Off"
         # Enable custom test images
         self.camera.ImageFileMode.Value = "On"
@@ -125,8 +146,9 @@ class AutofocusApp(QWidget):
         self.camera.ImageFilename.Value = 'C:\\Users\\u1870329\\Documents\\GitHub\\led-autofocus\\test-data\\'
 
         self.camera.PixelFormat.SetValue('Mono8')
-        self.exposure_time_ms = 100
+        self.exposure_time_ms = self.settings["exposure_time_ms"]
         self.camera.ExposureTime.SetValue(self.exposure_time_ms * 1000)
+        self.camera.Gain.SetValue(self.settings["gain"])
         print("Camera initialised!")
         self.video_view.resize(np.ceil(self.camera.Width.Value/4), np.ceil(self.camera.Height.Value/4))
         # self.video_view.setYRange((0, self.camera.Height.Value))
@@ -204,7 +226,7 @@ class AutofocusApp(QWidget):
             self.guessy = fit_testing.fit_gaussian(np.linspace(0, y_projection.shape[0], y_projection.shape[0]), y_projection, self.guessy)
 
             # get current position - this needs to be multiplied by the values from the fit
-            self.current_z = self.guessx[2] - self.guessy[2]
+            self.current_z = (self.guessx[2] - self.guessy[2]) * self.settings["p1"]
 
             if self.lock_button.isChecked():
                 # calculate required movement
@@ -255,17 +277,104 @@ class AutofocusApp(QWidget):
         self.guessx = x_fit
         self.guessy = y_fit
 
-        self.locked_position = x_fit[2] - y_fit[2]
+        self.locked_position = (x_fit[2] - y_fit[2])*self.settings["p1"]
         return
+
+
+class SettingsPanel(QWidget):
+    def __init__(self, current_settings=None):
+        super().__init__()
+        # Set window title
+        self.setWindowTitle("LED Autofocus Settings")
+
+        self.layout = QVBoxLayout()
+        self.setLayout(self.layout)
+
+        if current_settings is not None:
+            self.exposure_time = InputLine("Exposure time (ms)", current_settings["exposure_time"])
+            self.gain = InputLine("Gain", current_settings["gain"])
+            self.roi = InputLine("ROI [x y w h]", current_settings["roi"])
+            self.p1 = InputLine("p1", current_settings["p1"])
+            self.p2 = InputLine("p0", current_settings["p0"])
+        else:
+            self.exposure_time = InputLine("Exposure time (ms)")
+            self.gain = InputLine("Gain")
+            self.roi = InputLine("ROI [x y w h]")
+            self.p1 = InputLine("p1")
+            self.p2 = InputLine("p0")
+
+        # self.exposure_time = InputLine("Exposure time (ms)")
+        # self.gain = InputLine("Gain")
+        # self.roi = InputLine("ROI [x y w h]")
+        # self.p1 = InputLine("p1")
+        # self.p2 = InputLine("p0")
+
+        self.camera_settings_label = QLabel("Camera settings")
+        self.camera_settings_label.setStyleSheet("font: bold; font-size: 16px;")
+        self.calibration_settings_label = QLabel("Calibration settings")
+        self.calibration_settings_label.setStyleSheet("font: bold; font-size: 16px;")
+        self.calibration_settings_hint = QLabel("Calibration line is y = p1*x + p0")
+        self.calibration_settings_hint.setContentsMargins(0, 0, 0, 0)
+
+        self.update_settings_button = QPushButton("Update settings")
+        self.update_settings_button.setMinimumHeight(50)
+
+        self.layout.addWidget(self.camera_settings_label)
+        self.layout.addWidget(self.exposure_time)
+        self.layout.addWidget(self.gain)
+        self.layout.addWidget(self.roi)
+        self.layout.addWidget(self.calibration_settings_label)
+        self.layout.addWidget(self.calibration_settings_hint)
+        self.layout.addWidget(self.p1)
+        self.layout.addWidget(self.p2)
+        self.layout.addWidget(self.update_settings_button)
+
+
+
+class InputLine(QWidget):
+    def __init__(self, labelname="Input", initial_value=""):
+        super().__init__()
+
+        # Check if initial value is a number
+        if type(initial_value) == int or type(initial_value) == float:
+            initial_value = str(initial_value)
+        elif type(initial_value) == list:
+            initial_value = f"{initial_value[0]} {initial_value[1]} {initial_value[2]} {initial_value[3]}"
+
+
+        self.label = QLabel(labelname)
+        self.input = QLineEdit(initial_value)
+        self.input.setMinimumSize(100, 25)
+        self.input.setMaximumSize(100, 25)
+
+        self.layout = QHBoxLayout()
+        self.setLayout(self.layout)
+        self.layout.addWidget(self.label)
+        self.layout.addWidget(self.input)
+
+        self.layout.setContentsMargins(0, 0, 0, 0)
+        self.setContentsMargins(0, 0, 0, 0)
+
+        self.input.textChanged.connect(self._on_text_changed)
+
+    def _on_text_changed(self):
+        print(f"Text changed to {self.input.text()}")
+
 
 
 def test_function():
     app = QApplication([])
     widget = AutofocusApp()
+
+    # settings = {"exposure_time": 100, "gain": 1, "roi": [0, 0, 1528, 1528], "p1": 1, "p0": 0}
+    #
+    # widget = SettingsPanel(settings)
     widget.show()
     app.exec()
     return widget
 
 
 if __name__ == "__main__":
+    mmc = CMMCorePlus.instance()
+    mmc.loadSystemConfiguration()  # load demo configuration
     test_function()
