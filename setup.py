@@ -9,5 +9,13 @@ setup(
     license='',
     author='simone coppola',
     author_email='',
-    description=''
+    description='',
+    install_requires=[
+        'qtpy',
+        'pyqtgraph',
+        'pypylon',
+        'numpy',
+        'pymmcore_plus',
+        'pathlib',
+    ]
 )
