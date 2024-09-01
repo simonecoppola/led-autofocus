@@ -17,5 +17,6 @@ setup(
         'numpy',
         'pymmcore_plus',
         'pathlib',
+        'scipy'
     ]
 )
