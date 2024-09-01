@@ -1,5 +1,5 @@
 from qtpy.QtWidgets import (QApplication, QWidget, QVBoxLayout, QPushButton,
-                            QLabel, QLineEdit, QHBoxLayout, QGridLayout)
+                            QLabel, QLineEdit, QHBoxLayout)
 import json
 from pathlib import Path
 
