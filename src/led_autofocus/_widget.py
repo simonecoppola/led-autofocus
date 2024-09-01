@@ -59,7 +59,6 @@ class AutofocusWidget(QWidget):
         # LAYOUT
         self.layout = QGridLayout()
 
-
         button_group = QHBoxLayout()
         button_group.addWidget(self.camera_settings_button)
         button_group.addWidget(self.initialise_button)
@@ -138,17 +137,19 @@ class AutofocusWidget(QWidget):
         with open(config_path, "r") as f:
             self.settings = json.load(f)
 
+        if self.settings["test_mode"]:
+            import os
+            os.environ["PYLON_CAMEMU"] = "1"
+
         self.camera = pylon.InstantCamera(pylon.TlFactory.GetInstance().CreateFirstDevice())
         self.camera.Open()
 
-        #TODO: move these parameters to the .json file
-
-        if testing:
+        if self.settings["test_mode"]:
             self.camera.TestImageSelector.Value = "Off"
             # Enable custom test images
             self.camera.ImageFileMode.Value = "On"
             # Load custom test image from disk
-            self.camera.ImageFilename.Value = 'C:\\Users\\u1870329\\Documents\\GitHub\\microscope-control\\test-data\\'
+            self.camera.ImageFilename.Value = str(Path(__file__).parent / 'test-data')
 
         # Set camera parameters
         self.camera.Width.Value = self.settings["width"]
@@ -165,7 +166,6 @@ class AutofocusWidget(QWidget):
 
         # z-movement parameters
         self.max_movement = self.settings["max_movement"]
-
 
         # instantiate callback handler
         self.CameraHandler = ImageHandler(self.camera)
@@ -268,7 +268,6 @@ class AutofocusWidget(QWidget):
         self.ptr += 1
         return
 
-    @thread_worker(connect={"returned": update_plots_and_position})
     def grab_images_on_thread(self):
         # this function should do the heavy lifting, as it is run in a separate thread
         # TODO: Should probably avoid creating new variables, will slow things down possibly?
@@ -283,21 +282,15 @@ class AutofocusWidget(QWidget):
                                        self.guessy)
 
 
-
             polyfit = [self.settings["p2"], self.settings["p1"], self.settings["p0"]]
 
             self.current_z = -np.polyval(polyfit, self.guessx[2] - self.guessy[2])
 
-            # print(f"Difference: {self.guessx[2] - self.guessy[2]}, Current Z: {self.current_z}")
-
-            # get current position - this needs to be multiplied by the values from the fit
-            # self.current_z = ((self.guessx[2]-self.guessy[2])**2 * self.settings["p2"]) + ((self.guessx[2] - self.guessy[2]) * self.settings["p1"])+ self.settings["p0"]
-
-            # calculate required movement from the target position, with constraints in place
-
         if self.monitor_button.isChecked():
             self.data.append(self.current_z)
             self.time.append(self.ptr)
+
+        self.update_plots_and_position()
         return self
 
     def update(self):
@@ -334,6 +327,6 @@ def test_function():
 
 
 if __name__ == "__main__":
-    mmc = CMMCorePlus.instance()
-    mmc.loadSystemConfiguration()  # load demo configuration
+    # mmc = CMMCorePlus.instance()
+    # mmc.loadSystemConfiguration()  # load demo configuration
     test_function()

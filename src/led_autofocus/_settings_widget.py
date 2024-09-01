@@ -1,5 +1,5 @@
 from qtpy.QtWidgets import (QApplication, QWidget, QVBoxLayout, QPushButton,
-                            QLabel, QLineEdit, QHBoxLayout)
+                            QLabel, QLineEdit, QHBoxLayout, QCheckBox)
 import json
 from pathlib import Path
 
@@ -19,6 +19,8 @@ class SettingsPanel(QWidget):
             current_settings = json.load(f)
 
         # Create input values
+        self.test_mode = QCheckBox("Test mode?")
+        self.test_mode.setChecked(current_settings["test_mode"])
         self.exposure_time = InputLine("Exposure time (ms)", current_settings["exposure_time_ms"])
         self.gain = InputLine("Gain", current_settings["gain"])
         self.width = InputLine("Width", current_settings["width"])
@@ -41,6 +43,7 @@ class SettingsPanel(QWidget):
         self.update_settings_button = QPushButton("Update settings")
         self.update_settings_button.setMinimumHeight(50)
 
+        self.layout.addWidget(self.test_mode)
         self.layout.addWidget(self.camera_settings_label)
         self.layout.addWidget(self.exposure_time)
         self.layout.addWidget(self.gain)
@@ -60,6 +63,7 @@ class SettingsPanel(QWidget):
 
     def update_settings(self):
         settings = {
+            "test_mode": self.test_mode.isChecked(),
             "exposure_time_ms": int(self.exposure_time.get_value()),
             "gain": int(self.gain.get_value()),
             "width": int(self.width.get_value()),
