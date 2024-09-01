@@ -27,3 +27,15 @@ def fit_gaussian(x: np.ndarray, profile:np.ndarray, init_guess: list) -> np.ndar
     """
     popt, pcov = curve_fit(Gaussian1D, x, profile, p0=init_guess)
     return popt
+
+def get_initial_guess(profile: np.ndarray) -> list:
+    """
+    Get initial guess for Gaussian fit
+    :param profile: profile to fit
+    :return: initial guess, [i0, x0, sx, amp]
+    """
+    i0 = np.min(profile)
+    x0 = np.argmax(profile)
+    sx = x0/4
+    amp = np.max(profile) - i0
+    return [i0, x0, sx, amp]

@@ -7,7 +7,7 @@ import json
 from qtpy.QtCore import Qt
 from pymmcore_plus import CMMCorePlus
 from .ImageHandler import ImageHandler
-from ._fit_utilities import fit_gaussian, Gaussian1D
+from ._fit_utilities import fit_gaussian, Gaussian1D, get_initial_guess
 from pathlib import Path
 from ._settings_widget import SettingsPanel
 
@@ -123,8 +123,10 @@ class AutofocusWidget(QWidget):
 
     def _on_initialise_button_clicked(self):
         # GUESS VALUES - will be constantly updated
-        self.guessx = [0, 2000, 300, 20000]
-        self.guessy = [0, 800, 300, 20000]
+        # self.guessx = [0, 2000, 300, 20000]
+        # self.guessy = [0, 800, 300, 20000]
+        self.guessx = None
+        self.guessy = None
         self.current_z = 0
         self.last_movement = 0
 
@@ -276,11 +278,14 @@ class AutofocusWidget(QWidget):
         y_projection = self.CameraHandler.y_projection
 
         if self.lock_button.isChecked() or self.monitor_button.isChecked():
+            if self.guessx is None or self.guessy is None:
+                self.guessx = get_initial_guess(x_projection)
+                self.guessy = get_initial_guess(y_projection)
+
             self.guessx = fit_gaussian(np.linspace(0, x_projection.shape[0], x_projection.shape[0]), x_projection,
                                        self.guessx)
             self.guessy = fit_gaussian(np.linspace(0, y_projection.shape[0], y_projection.shape[0]), y_projection,
                                        self.guessy)
-
 
             polyfit = [self.settings["p2"], self.settings["p1"], self.settings["p0"]]
 
