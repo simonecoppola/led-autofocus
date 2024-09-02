@@ -2,10 +2,11 @@ import pypylon.pylon as py
 import numpy as np
 # handle exception trace for debugging
 # background loop
+from ._fit_utilities import fit_gaussian, get_initial_guess, Gaussian1D
 import traceback
 
 class ImageHandler(py.ImageEventHandler):
-    def __init__(self, cam):
+    def __init__(self, cam, fit_profiles=False):
         super().__init__()
         self.img = np.zeros((cam.Height.Value, cam.Width.Value), dtype=np.uint8)
 
@@ -16,6 +17,10 @@ class ImageHandler(py.ImageEventHandler):
         # allocate space for x and y fits
         self.x_fit = np.zeros(4, dtype=np.float32)
         self.y_fit = np.zeros(4, dtype=np.float32)
+
+        self.fit_profiles = fit_profiles
+        self.guessx = None
+        self.guessy = None
 
         # allocate space for timestamp
         self.timestamp = np.zeros(1, dtype=np.float32)
@@ -38,6 +43,23 @@ class ImageHandler(py.ImageEventHandler):
                 self.x_projection = self.img.sum(axis=0)
                 self.y_projection = self.img.sum(axis=1)
                 self.timestamp = grabResult.TimeStamp
+
+                # print(self.timestamp)
+                # print(self.fit_profiles)
+
+                if self.fit_profiles:
+                    if self.guessx is None:
+                        self.guessx = get_initial_guess(self.x_projection)
+                        self.guessy = get_initial_guess(self.y_projection)
+
+                    # print(self.guessx)
+                    self.guessx = fit_gaussian(np.linspace(0, self.x_projection.shape[0], self.x_projection.shape[0]), self.x_projection,
+                                        self.guessx)
+                    self.guessy = fit_gaussian(np.linspace(0, self.y_projection.shape[0], self.y_projection.shape[0]), self.y_projection,
+                                        self.guessy)
+
+                    self.x_fit = Gaussian1D(np.linspace(0, self.x_projection.shape[0], self.x_projection.shape[0]), *self.guessx)
+                    self.y_fit = Gaussian1D(np.linspace(0, self.y_projection.shape[0], self.y_projection.shape[0]), *self.guessy)
             else:
                 raise RuntimeError("Grab Failed")
         except Exception as e:
