@@ -34,9 +34,3 @@ The project is very much in the early stages so bugs are likely.
 |                   |                                   |                                                                                                                                                          | 1771.09 |                                                                       |
 ## 🛠️Build Instructions
 Coming soon
-
-
-## ⚠️To-do
-- [x] Make sure code picks up current pymmcore-plus instance
-- [ ] Calibration script
-- [x] `requirements.txt` to make sure all packages are installed
