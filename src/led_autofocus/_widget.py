@@ -33,6 +33,8 @@ class AutofocusWidget(QWidget):
         self.monitor_button = QPushButton("Monitor")
         self.lock_button = QPushButton("Definitely focus?")
         self.lock_button.setStyleSheet("font: italic;")
+        self.recall_focus_button = QPushButton("Recall Focus")
+        self.recall_focus_button.setCheckable(True)
         self.show_camera_feed_button = QPushButton("Show camera feed")
         self.close_camera = QPushButton("Close camera (requires re-initialisation)")
 
@@ -68,6 +70,7 @@ class AutofocusWidget(QWidget):
         self.button_group = QHBoxLayout()
         self.button_group.addWidget(self.monitor_button)
         self.button_group.addWidget(self.lock_button)
+        self.button_group.addWidget(self.recall_focus_button)
         self.layout.addLayout(self.button_group, 1, 0, 1, 2)
         self.layout.addWidget(self.plot_canvas, 2, 0, 4, 2)
 
@@ -86,14 +89,14 @@ class AutofocusWidget(QWidget):
         self.timer.timeout.connect(self.update)
 
         # PLOT
-        self.monitor_curve = self.plot_canvas.plot(pen='y')
+        self.monitor_curve = self.plot_canvas.plot(pen='b')
         self.locked_position = 0
         self.locked_position_curve = self.plot_canvas.plot(pen=pg.mkPen('r', style=Qt.DashLine))
 
         self.x_plot = self.x_canvas.plot(pen='r')
-        self.x_fit_plot = self.x_canvas.plot(pen=pg.mkPen('y', style=Qt.DashLine))
+        self.x_fit_plot = self.x_canvas.plot(pen=pg.mkPen('b', style=Qt.DashLine))
         self.y_plot = self.y_canvas.plot(pen='r')
-        self.y_fit_plot = self.y_canvas.plot(pen=pg.mkPen('y', style=Qt.DashLine))
+        self.y_fit_plot = self.y_canvas.plot(pen=pg.mkPen('b', style=Qt.DashLine))
 
         # DATA STORAGE
         self.data = []
@@ -122,9 +125,6 @@ class AutofocusWidget(QWidget):
         self.settings_panel.show()
 
     def _on_initialise_button_clicked(self):
-        # GUESS VALUES - will be constantly updated
-        # self.guessx = [0, 2000, 300, 20000]
-        # self.guessy = [0, 800, 300, 20000]
         self.guessx = None
         self.guessy = None
         self.current_z = 0
@@ -181,7 +181,12 @@ class AutofocusWidget(QWidget):
                 self.camera.StartGrabbing(pylon.GrabStrategy_OneByOne, pylon.GrabLoop_ProvidedByInstantCamera)
                 print('Free-run acquisition started!')
 
-            self.get_lock_position()
+            if self.recall_focus_button.isChecked():
+                # pass because we don't need to recalculate the lock position.
+                pass
+            else:
+                self.get_lock_position()
+
             self.lock_button.setText("Definitely focused!")
             self.lock_button.setStyleSheet("font: italic bold; color: white; background-color: green;")
         elif not self.lock_button.isChecked():
@@ -258,7 +263,7 @@ class AutofocusWidget(QWidget):
             else:
                 # print(f"Required movement is {self.required_movement * 1000}")
                 self.last_movement = self.required_movement
-                if np.abs(self.required_movement)*1000 < 20:
+                if np.abs(self.required_movement)*1000 > 0:
                     self.mmc.setRelativeXYZPosition(0, 0, self.required_movement)
 
         # clear data if too large
