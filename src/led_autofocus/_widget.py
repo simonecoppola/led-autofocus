@@ -10,6 +10,7 @@ from .ImageHandler import ImageHandler
 from ._fit_utilities import fit_gaussian, Gaussian1D, get_initial_guess
 from pathlib import Path
 from ._settings_widget import SettingsPanel
+from qtpy.QtCore import QObject, QThread
 
 testing = False
 
@@ -178,6 +179,7 @@ class AutofocusWidget(QWidget):
         if self.lock_button.isChecked():
             # make sure camera starts grabbing
             if not self.camera.IsGrabbing():
+                self.CameraHandler.fit_profiles = True
                 self.camera.StartGrabbing(pylon.GrabStrategy_OneByOne, pylon.GrabLoop_ProvidedByInstantCamera)
                 print('Free-run acquisition started!')
 
@@ -194,11 +196,13 @@ class AutofocusWidget(QWidget):
             self.lock_button.setText("Definitely focus?")
             if self.camera.IsGrabbing() and not self.monitor_button.isChecked() and not self.show_camera_feed_button.isChecked():
                 self.camera.StopGrabbing()
+                self.CameraHandler.fit_profiles = False
                 print('Free-run acquisition stopped!')
         pass
 
     def _on_monitor_button_clicked(self):
         if self.monitor_button.isChecked():
+            self.CameraHandler.fit_profiles = True
             self.ptr = 0
             # Check if the camera is grabbing or the timer is active (i.e. if the lock is already engaged)
             if self.camera.IsGrabbing():
@@ -215,6 +219,7 @@ class AutofocusWidget(QWidget):
         if not self.monitor_button.isChecked() and not self.lock_button.isChecked() and not self.show_camera_feed_button.isChecked():
             self.camera.StopGrabbing()
             print('Free-run acquisition stopped!')
+            self.CameraHandler.fit_profiles = False
             self.timer.stop()
 
     def _on_show_camera_feed_button_clicked(self):
@@ -235,9 +240,8 @@ class AutofocusWidget(QWidget):
             self.y_plot.setData(self.CameraHandler.y_projection)
             if self.lock_button.isChecked() or self.monitor_button.isChecked():
                 self.x_fit_plot.setData(
-                    Gaussian1D(np.linspace(0, self.CameraHandler.x_projection.shape[0], self.CameraHandler.x_projection.shape[0]), *self.guessx))
-                self.y_fit_plot.setData(
-                    Gaussian1D(np.linspace(0, self.CameraHandler.y_projection.shape[0], self.CameraHandler.y_projection.shape[0]), *self.guessy))
+                    self.CameraHandler.x_fit)
+                self.y_fit_plot.setData(self.CameraHandler.y_fit)
             else:
                 self.x_fit_plot.clear()
                 self.y_fit_plot.clear()
@@ -278,23 +282,22 @@ class AutofocusWidget(QWidget):
     def grab_images_on_thread(self):
         # this function should do the heavy lifting, as it is run in a separate thread
         # TODO: Should probably avoid creating new variables, will slow things down possibly?
-        img = self.CameraHandler.img
-        x_projection = self.CameraHandler.x_projection
-        y_projection = self.CameraHandler.y_projection
+
+        # img = self.CameraHandler.img
+        # x_projection = self.CameraHandler.x_projection
+        # y_projection = self.CameraHandler.y_projection
 
         if self.lock_button.isChecked() or self.monitor_button.isChecked():
-            if self.guessx is None or self.guessy is None:
-                self.guessx = get_initial_guess(x_projection)
-                self.guessy = get_initial_guess(y_projection)
-
-            self.guessx = fit_gaussian(np.linspace(0, x_projection.shape[0], x_projection.shape[0]), x_projection,
-                                       self.guessx)
-            self.guessy = fit_gaussian(np.linspace(0, y_projection.shape[0], y_projection.shape[0]), y_projection,
-                                       self.guessy)
+        #     if self.guessx is None or self.guessy is None:
+        #         self.CameraHandler.guessx = get_initial_guess(x_projection)
+        #         self.CameraHandler.guessy = get_initial_guess(y_projection)
+        #         self.CameraHandler.fit_profiles = True
 
             polyfit = [self.settings["p2"], self.settings["p1"], self.settings["p0"]]
-
-            self.current_z = -np.polyval(polyfit, self.guessx[2] - self.guessy[2])
+            try:
+                self.current_z = -np.polyval(polyfit, self.CameraHandler.guessx[2] - self.CameraHandler.guessy[2])
+            except TypeError:
+                print("empty?")
 
         if self.monitor_button.isChecked():
             self.data.append(self.current_z)
@@ -307,21 +310,8 @@ class AutofocusWidget(QWidget):
         self.grab_images_on_thread()
 
     def get_lock_position(self):
-        img = self.CameraHandler.img
-        x_projection = self.CameraHandler.x_projection
-        y_projection = self.CameraHandler.y_projection
-
-        x_fit = fit_gaussian(np.linspace(0, x_projection.shape[0], x_projection.shape[0]), x_projection,
-                                         self.guessx)
-        y_fit = fit_gaussian(np.linspace(0, y_projection.shape[0], y_projection.shape[0]), y_projection,
-                                         self.guessy)
-
-        # Update guess values - makes next fit easier and faster
-        self.guessx = x_fit
-        self.guessy = y_fit
-
         polyfit = [self.settings["p2"], self.settings["p1"], self.settings["p0"]]
-        self.locked_position = -np.polyval(polyfit, self.guessx[2] - self.guessy[2])
+        self.locked_position = -np.polyval(polyfit, self.CameraHandler.guessx[2] - self.CameraHandler.guessy[2])
         return
 
 def test_function():
