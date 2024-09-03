@@ -1,4 +1,4 @@
-from qtpy.QtWidgets import (QApplication, QWidget, QPushButton, QHBoxLayout, QGridLayout)
+from qtpy.QtWidgets import (QApplication, QWidget, QPushButton, QHBoxLayout, QGridLayout, QSizePolicy)
 import pyqtgraph as pg
 from pypylon import pylon
 from pyqtgraph.Qt import QtCore
@@ -7,7 +7,6 @@ import json
 from qtpy.QtCore import Qt
 from pymmcore_plus import CMMCorePlus
 from .ImageHandler import ImageHandler
-from ._fit_utilities import fit_gaussian, Gaussian1D, get_initial_guess
 from pathlib import Path
 from ._settings_widget import SettingsPanel
 
@@ -21,7 +20,11 @@ if testing:
 class AutofocusWidget(QWidget):
     def __init__(self):
         super().__init__()
-        self.setGeometry(100, 100, 850, 700)
+        self.setGeometry(100, 100, 550, 350) # 700
+        self.min_size = self.size()
+        self.setMaximumHeight(450)
+        self.setMaximumWidth(550)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.MinimumExpanding)
         self.setWindowTitle("Autofocus App")
 
         # PYMMCORE
@@ -46,6 +49,7 @@ class AutofocusWidget(QWidget):
         # Plot widget for focus position
         self.plot_canvas = pg.PlotWidget(background=None)
         self.plot_canvas.setMinimumHeight(200)
+        self.plot_canvas.setMaximumHeight(250)
 
         # Video widget for camera feed and projections
         self.video_view = pg.PlotWidget(background=None, visible=False)
@@ -113,6 +117,11 @@ class AutofocusWidget(QWidget):
 
         self.value = 0
 
+        # hide the video feed by default
+        self.video_view.hide()
+        self.x_canvas.hide()
+        self.y_canvas.hide()
+
     def _on_close_camera_button_clicked(self):
         if hasattr(self, "camera"):
             self.camera.Close()
@@ -178,6 +187,7 @@ class AutofocusWidget(QWidget):
         if self.lock_button.isChecked():
             # make sure camera starts grabbing
             if not self.camera.IsGrabbing():
+                self.CameraHandler.fit_profiles = True
                 self.camera.StartGrabbing(pylon.GrabStrategy_OneByOne, pylon.GrabLoop_ProvidedByInstantCamera)
                 print('Free-run acquisition started!')
 
@@ -185,7 +195,9 @@ class AutofocusWidget(QWidget):
                 # pass because we don't need to recalculate the lock position.
                 pass
             else:
-                self.get_lock_position()
+                # calculate the lock position
+                self.locked_position = self.calculate_position(self.CameraHandler.guessx, self.CameraHandler.guessy)
+                # self.get_lock_position()
 
             self.lock_button.setText("Definitely focused!")
             self.lock_button.setStyleSheet("font: italic bold; color: white; background-color: green;")
@@ -194,11 +206,13 @@ class AutofocusWidget(QWidget):
             self.lock_button.setText("Definitely focus?")
             if self.camera.IsGrabbing() and not self.monitor_button.isChecked() and not self.show_camera_feed_button.isChecked():
                 self.camera.StopGrabbing()
+                self.CameraHandler.fit_profiles = False
                 print('Free-run acquisition stopped!')
         pass
 
     def _on_monitor_button_clicked(self):
         if self.monitor_button.isChecked():
+            self.CameraHandler.fit_profiles = True
             self.ptr = 0
             # Check if the camera is grabbing or the timer is active (i.e. if the lock is already engaged)
             if self.camera.IsGrabbing():
@@ -215,16 +229,27 @@ class AutofocusWidget(QWidget):
         if not self.monitor_button.isChecked() and not self.lock_button.isChecked() and not self.show_camera_feed_button.isChecked():
             self.camera.StopGrabbing()
             print('Free-run acquisition stopped!')
+            self.CameraHandler.fit_profiles = False
             self.timer.stop()
 
     def _on_show_camera_feed_button_clicked(self):
         # start acquisition and timer if not already started
         if self.show_camera_feed_button.isChecked():
+            self.video_view.show()
+            self.x_canvas.show()
+            self.y_canvas.show()
             if not self.camera.IsGrabbing():
                 self.camera.StartGrabbing(pylon.GrabStrategy_OneByOne, pylon.GrabLoop_ProvidedByInstantCamera)
                 print('Free-run acquisition started!')
             if not self.timer.isActive():
                 self.timer.start(self.camera.ExposureTime.Value/1000)
+        else:
+            self.video_view.hide()
+            self.x_canvas.hide()
+            self.y_canvas.hide()
+            self.adjustSize()
+            self.resize(self.min_size)
+
         pass
 
     def update_plots_and_position(self):
@@ -235,9 +260,8 @@ class AutofocusWidget(QWidget):
             self.y_plot.setData(self.CameraHandler.y_projection)
             if self.lock_button.isChecked() or self.monitor_button.isChecked():
                 self.x_fit_plot.setData(
-                    Gaussian1D(np.linspace(0, self.CameraHandler.x_projection.shape[0], self.CameraHandler.x_projection.shape[0]), *self.guessx))
-                self.y_fit_plot.setData(
-                    Gaussian1D(np.linspace(0, self.CameraHandler.y_projection.shape[0], self.CameraHandler.y_projection.shape[0]), *self.guessy))
+                    self.CameraHandler.x_fit)
+                self.y_fit_plot.setData(self.CameraHandler.y_fit)
             else:
                 self.x_fit_plot.clear()
                 self.y_fit_plot.clear()
@@ -252,7 +276,6 @@ class AutofocusWidget(QWidget):
             # calculate required movement
             self.required_movement = (self.locked_position - self.current_z) * 0.001  # movement is in um
 
-            # TODO: set this to a json parameter
             if np.abs(self.required_movement) > self.max_movement:  # change back to 0.4
                 print("Movement too big. No movement.")
                 # Disengage the lock button
@@ -275,26 +298,20 @@ class AutofocusWidget(QWidget):
         self.ptr += 1
         return
 
+    def calculate_position(self, guessx, guessy):
+        polyfit = [self.settings["p2"], self.settings["p1"], self.settings["p0"]]
+        calculated_position = -np.polyval(polyfit, guessx[2] - guessy[2])
+        return calculated_position
+
     def grab_images_on_thread(self):
-        # this function should do the heavy lifting, as it is run in a separate thread
-        # TODO: Should probably avoid creating new variables, will slow things down possibly?
-        img = self.CameraHandler.img
-        x_projection = self.CameraHandler.x_projection
-        y_projection = self.CameraHandler.y_projection
-
         if self.lock_button.isChecked() or self.monitor_button.isChecked():
-            if self.guessx is None or self.guessy is None:
-                self.guessx = get_initial_guess(x_projection)
-                self.guessy = get_initial_guess(y_projection)
 
-            self.guessx = fit_gaussian(np.linspace(0, x_projection.shape[0], x_projection.shape[0]), x_projection,
-                                       self.guessx)
-            self.guessy = fit_gaussian(np.linspace(0, y_projection.shape[0], y_projection.shape[0]), y_projection,
-                                       self.guessy)
-
-            polyfit = [self.settings["p2"], self.settings["p1"], self.settings["p0"]]
-
-            self.current_z = -np.polyval(polyfit, self.guessx[2] - self.guessy[2])
+            # polyfit = [self.settings["p2"], self.settings["p1"], self.settings["p0"]]
+            try:
+                self.current_z = self.calculate_position(self.CameraHandler.guessx, self.CameraHandler.guessy)
+                # self.current_z = -np.polyval(polyfit, self.CameraHandler.guessx[2] - self.CameraHandler.guessy[2])
+            except TypeError:
+                print("empty?")
 
         if self.monitor_button.isChecked():
             self.data.append(self.current_z)
@@ -307,21 +324,8 @@ class AutofocusWidget(QWidget):
         self.grab_images_on_thread()
 
     def get_lock_position(self):
-        img = self.CameraHandler.img
-        x_projection = self.CameraHandler.x_projection
-        y_projection = self.CameraHandler.y_projection
-
-        x_fit = fit_gaussian(np.linspace(0, x_projection.shape[0], x_projection.shape[0]), x_projection,
-                                         self.guessx)
-        y_fit = fit_gaussian(np.linspace(0, y_projection.shape[0], y_projection.shape[0]), y_projection,
-                                         self.guessy)
-
-        # Update guess values - makes next fit easier and faster
-        self.guessx = x_fit
-        self.guessy = y_fit
-
         polyfit = [self.settings["p2"], self.settings["p1"], self.settings["p0"]]
-        self.locked_position = -np.polyval(polyfit, self.guessx[2] - self.guessy[2])
+        self.locked_position = -np.polyval(polyfit, self.CameraHandler.guessx[2] - self.CameraHandler.guessy[2])
         return
 
 def test_function():
