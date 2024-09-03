@@ -187,7 +187,9 @@ class AutofocusWidget(QWidget):
                 # pass because we don't need to recalculate the lock position.
                 pass
             else:
-                self.get_lock_position()
+                # calculate the lock position
+                self.locked_position = self.calculate_position(self.CameraHandler.guessx, self.CameraHandler.guessy)
+                # self.get_lock_position()
 
             self.lock_button.setText("Definitely focused!")
             self.lock_button.setStyleSheet("font: italic bold; color: white; background-color: green;")
@@ -256,7 +258,6 @@ class AutofocusWidget(QWidget):
             # calculate required movement
             self.required_movement = (self.locked_position - self.current_z) * 0.001  # movement is in um
 
-            # TODO: set this to a json parameter
             if np.abs(self.required_movement) > self.max_movement:  # change back to 0.4
                 print("Movement too big. No movement.")
                 # Disengage the lock button
@@ -279,23 +280,18 @@ class AutofocusWidget(QWidget):
         self.ptr += 1
         return
 
+    def calculate_position(self, guessx, guessy):
+        polyfit = [self.settings["p2"], self.settings["p1"], self.settings["p0"]]
+        calculated_position = -np.polyval(polyfit, guessx[2] - guessy[2])
+        return calculated_position
+
     def grab_images_on_thread(self):
-        # this function should do the heavy lifting, as it is run in a separate thread
-        # TODO: Should probably avoid creating new variables, will slow things down possibly?
-
-        # img = self.CameraHandler.img
-        # x_projection = self.CameraHandler.x_projection
-        # y_projection = self.CameraHandler.y_projection
-
         if self.lock_button.isChecked() or self.monitor_button.isChecked():
-        #     if self.guessx is None or self.guessy is None:
-        #         self.CameraHandler.guessx = get_initial_guess(x_projection)
-        #         self.CameraHandler.guessy = get_initial_guess(y_projection)
-        #         self.CameraHandler.fit_profiles = True
 
-            polyfit = [self.settings["p2"], self.settings["p1"], self.settings["p0"]]
+            # polyfit = [self.settings["p2"], self.settings["p1"], self.settings["p0"]]
             try:
-                self.current_z = -np.polyval(polyfit, self.CameraHandler.guessx[2] - self.CameraHandler.guessy[2])
+                self.current_z = self.calculate_position(self.CameraHandler.guessx, self.CameraHandler.guessy)
+                # self.current_z = -np.polyval(polyfit, self.CameraHandler.guessx[2] - self.CameraHandler.guessy[2])
             except TypeError:
                 print("empty?")
 
