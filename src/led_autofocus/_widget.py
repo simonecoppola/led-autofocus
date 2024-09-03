@@ -1,4 +1,4 @@
-from qtpy.QtWidgets import (QApplication, QWidget, QPushButton, QHBoxLayout, QGridLayout)
+from qtpy.QtWidgets import (QApplication, QWidget, QPushButton, QHBoxLayout, QGridLayout, QSizePolicy)
 import pyqtgraph as pg
 from pypylon import pylon
 from pyqtgraph.Qt import QtCore
@@ -7,10 +7,8 @@ import json
 from qtpy.QtCore import Qt
 from pymmcore_plus import CMMCorePlus
 from .ImageHandler import ImageHandler
-from ._fit_utilities import fit_gaussian, Gaussian1D, get_initial_guess
 from pathlib import Path
 from ._settings_widget import SettingsPanel
-from qtpy.QtCore import QObject, QThread
 
 testing = False
 
@@ -22,7 +20,11 @@ if testing:
 class AutofocusWidget(QWidget):
     def __init__(self):
         super().__init__()
-        self.setGeometry(100, 100, 850, 700)
+        self.setGeometry(100, 100, 550, 350) # 700
+        self.min_size = self.size()
+        self.setMaximumHeight(450)
+        self.setMaximumWidth(550)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.MinimumExpanding)
         self.setWindowTitle("Autofocus App")
 
         # PYMMCORE
@@ -47,6 +49,7 @@ class AutofocusWidget(QWidget):
         # Plot widget for focus position
         self.plot_canvas = pg.PlotWidget(background=None)
         self.plot_canvas.setMinimumHeight(200)
+        self.plot_canvas.setMaximumHeight(250)
 
         # Video widget for camera feed and projections
         self.video_view = pg.PlotWidget(background=None, visible=False)
@@ -113,6 +116,11 @@ class AutofocusWidget(QWidget):
         self.close_camera.clicked.connect(self._on_close_camera_button_clicked)
 
         self.value = 0
+
+        # hide the video feed by default
+        self.video_view.hide()
+        self.x_canvas.hide()
+        self.y_canvas.hide()
 
     def _on_close_camera_button_clicked(self):
         if hasattr(self, "camera"):
@@ -227,11 +235,21 @@ class AutofocusWidget(QWidget):
     def _on_show_camera_feed_button_clicked(self):
         # start acquisition and timer if not already started
         if self.show_camera_feed_button.isChecked():
+            self.video_view.show()
+            self.x_canvas.show()
+            self.y_canvas.show()
             if not self.camera.IsGrabbing():
                 self.camera.StartGrabbing(pylon.GrabStrategy_OneByOne, pylon.GrabLoop_ProvidedByInstantCamera)
                 print('Free-run acquisition started!')
             if not self.timer.isActive():
                 self.timer.start(self.camera.ExposureTime.Value/1000)
+        else:
+            self.video_view.hide()
+            self.x_canvas.hide()
+            self.y_canvas.hide()
+            self.adjustSize()
+            self.resize(self.min_size)
+
         pass
 
     def update_plots_and_position(self):
