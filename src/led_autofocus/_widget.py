@@ -11,6 +11,7 @@ from pathlib import Path
 from ._settings_widget import SettingsPanel
 from qtpy.QtCore import QObject, QThread
 from time import sleep
+
 testing = False
 
 if testing:
@@ -125,6 +126,11 @@ class AutofocusWidget(QWidget):
         self.recall_surface_btn = QPushButton("recall surface (test)")
         self.layout.addWidget(self.recall_surface_btn)
         self.recall_surface_btn.clicked.connect(self.recall_surface)
+
+        # hide the video feed by default
+        self.video_view.hide()
+        self.x_canvas.hide()
+        self.y_canvas.hide()
 
         # hide the video feed by default
         self.video_view.hide()
