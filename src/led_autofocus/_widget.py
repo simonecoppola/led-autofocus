@@ -352,8 +352,8 @@ class AutofocusWidget(QWidget):
         It is useful to take into account the fact that the sample does not sit perfectly horizontal.
         :return:
         """
-        max_travel_um = 20
-        step_travel_um = 0.5
+        max_travel_um = 20  # this eventually should be a parameter in the json file.
+        step_travel_um = 0.5  # this eventually should be a parameter in the json file.
         if self.CameraHandler is None:
             print("Camera handler is none.")
             pass
