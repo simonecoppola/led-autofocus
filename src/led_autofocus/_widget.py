@@ -11,7 +11,7 @@ from ._fit_utilities import fit_gaussian, Gaussian1D, get_initial_guess
 from pathlib import Path
 from ._settings_widget import SettingsPanel
 from qtpy.QtCore import QObject, QThread
-
+from time import sleep
 testing = False
 
 if testing:
@@ -113,6 +113,14 @@ class AutofocusWidget(QWidget):
         self.close_camera.clicked.connect(self._on_close_camera_button_clicked)
 
         self.value = 0
+        # Variable storage.
+        self.locked_position_profile_x = None
+        self.locked_position_profile_y = None
+        self.CameraHandler = None
+
+        self.recall_surface_btn = QPushButton("recall surface (test)")
+        self.layout.addWidget(self.recall_surface_btn)
+        self.recall_surface_btn.clicked.connect(self.recall_surface)
 
     def _on_close_camera_button_clicked(self):
         if hasattr(self, "camera"):
@@ -268,7 +276,10 @@ class AutofocusWidget(QWidget):
                 # print(f"Required movement is {self.required_movement * 1000}")
                 self.last_movement = self.required_movement
                 if np.abs(self.required_movement)*1000 > 0:
-                    self.mmc.setRelativeXYZPosition(0, 0, self.required_movement)
+                    try:
+                        self.mmc.setRelativeXYZPosition(0, 0, self.required_movement)
+                    except:
+                        pass
 
         # clear data if too large
         if len(self.time) > 100:
@@ -312,7 +323,66 @@ class AutofocusWidget(QWidget):
     def get_lock_position(self):
         polyfit = [self.settings["p2"], self.settings["p1"], self.settings["p0"]]
         self.locked_position = -np.polyval(polyfit, self.CameraHandler.guessx[2] - self.CameraHandler.guessy[2])
+
+        # store data useful for recall surface
+        self.locked_position_profile_x = self.CameraHandler.x_projection
+        self.locked_position_profile_y = self.CameraHandler.y_projection
         return
+
+    # TODO: check if this work on the microscope.
+    def recall_surface(self):
+        """
+        Command to look for a surface.
+        It is called after the stage is moved significantly, or the objective lowered than raised.
+        It is useful to take into account the fact that the sample does not sit perfectly horizontal.
+        :return:
+        """
+        max_travel_um = 20
+        step_travel_um = 0.5
+        if self.CameraHandler is None:
+            print("Camera handler is none.")
+            pass
+        else:
+            print("doing the thing.")
+            # values for fits
+
+            # If camera was grabbing, stop.
+            if self.camera.IsGrabbing():
+                self.camera.StopGrabbing()
+
+            # Now need to basically acquire a stack
+            try:
+                current_z = self.mmc.getZPosition()
+            except:
+                current_z = 0
+
+            # generate an array of movements
+            num_movements = (max_travel_um*2)/step_travel_um
+            z_movements = np.linspace(-max_travel_um, max_travel_um, int(num_movements))
+            least_squares = []
+
+            self.camera.StartGrabbing()
+            # loop through the z-movements
+            for movement in z_movements:
+                self.mmc.setZPosition(current_z+movement)
+                sleep(0.1)
+                difference_x = self.locked_position_profile_x-self.CameraHandler.x_projection
+                difference_y = self.locked_position_profile_y-self.CameraHandler.y_projection
+
+                total_least_squares = np.sum(np.pow(difference_x,2)) + np.sum(np.pow(difference_y,2))
+                least_squares.append(total_least_squares)
+                # should plot here to check what's happening.
+            self.camera.StopGrabbing()
+
+            # get the index of the smallest value
+            index_smallest = np.where(least_squares == np.min(least_squares))
+
+            # calculate surface position
+            surface_position = current_z + z_movements[index_smallest[0][0]]
+
+            # final move to the position closest to the surface.
+            self.mmc.setZPosition(surface_position)
+
 
 def test_function():
     app = QApplication([])
