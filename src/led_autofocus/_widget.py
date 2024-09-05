@@ -212,6 +212,9 @@ class AutofocusWidget(QWidget):
             else:
                 # calculate the lock position
                 self.locked_position = self.calculate_position(self.CameraHandler.guessx, self.CameraHandler.guessy)
+                self.locked_position_profile_x = self.CameraHandler.x_projection
+                self.locked_position_profile_y = self.CameraHandler.y_projection
+
                 # self.get_lock_position()
 
             self.lock_button.setText("Definitely focused!")
@@ -341,37 +344,27 @@ class AutofocusWidget(QWidget):
     def update(self):
         self.grab_images_on_thread()
 
-    def get_lock_position(self):
-        polyfit = [self.settings["p2"], self.settings["p1"], self.settings["p0"]]
-        self.locked_position = -np.polyval(polyfit, self.CameraHandler.guessx[2] - self.CameraHandler.guessy[2])
 
-        # store data useful for recall surface
-        self.locked_position_profile_x = self.CameraHandler.x_projection
-        self.locked_position_profile_y = self.CameraHandler.y_projection
-        return
 
     # TODO: check if this work on the microscope.
     def recall_surface(self):
         """
         Command to look for a surface.
-        It is called after the stage is moved significantly, or the objective lowered than raised.
+        It is called after the stage is moved significantly in xy, or the objective lowered than raised.
         It is useful to take into account the fact that the sample does not sit perfectly horizontal.
         :return:
         """
-        max_travel_um = 20  # this eventually should be a parameter in the json file.
+        max_travel_um = 4  # this eventually should be a parameter in the json file.
         step_travel_um = 0.5  # this eventually should be a parameter in the json file.
         if self.CameraHandler is None:
-            print("Camera handler is none.")
+            print("Camera handler is none. Could not acquire.")
             pass
         else:
-            print("doing the thing.")
-            # values for fits
-
             # If camera was grabbing, stop.
             if self.camera.IsGrabbing():
                 self.camera.StopGrabbing()
 
-            # Now need to basically acquire a stack
+            # Now need to acquire a z-stack
             try:
                 current_z = self.mmc.getZPosition()
             except:
@@ -380,9 +373,10 @@ class AutofocusWidget(QWidget):
             # generate an array of movements
             num_movements = (max_travel_um*2)/step_travel_um
             z_movements = np.linspace(-max_travel_um, max_travel_um, int(num_movements))
-            least_squares = []
+            pixel_distances = []
 
-            self.camera.StartGrabbing()
+            self.CameraHandler.fit_profiles = False  # disable this for now - we don't need to fit anything
+            self.camera.StartGrabbing(pylon.GrabStrategy_OneByOne, pylon.GrabLoop_ProvidedByInstantCamera)
             # loop through the z-movements
             for movement in z_movements:
                 self.mmc.setZPosition(current_z+movement)
@@ -390,13 +384,17 @@ class AutofocusWidget(QWidget):
                 difference_x = self.locked_position_profile_x-self.CameraHandler.x_projection
                 difference_y = self.locked_position_profile_y-self.CameraHandler.y_projection
 
-                total_least_squares = np.sum(np.pow(difference_x,2)) + np.sum(np.pow(difference_y,2))
-                least_squares.append(total_least_squares)
+                mean_distance_squared_x = np.mean(np.power(difference_x, 2))
+                mean_distance_squared_y = np.mean(np.power(difference_y, 2))
+
+                current_pixel_distance = mean_distance_squared_x + mean_distance_squared_y
+
+                pixel_distances.append(current_pixel_distance)
                 # should plot here to check what's happening.
             self.camera.StopGrabbing()
 
             # get the index of the smallest value
-            index_smallest = np.where(least_squares == np.min(least_squares))
+            index_smallest = np.where(pixel_distances == np.min(pixel_distances))
 
             # calculate surface position
             surface_position = current_z + z_movements[index_smallest[0][0]]
