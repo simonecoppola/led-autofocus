@@ -20,6 +20,8 @@ class SettingsPanel(QWidget):
 
         # Create input values
         self.test_mode = QCheckBox("Test mode?")
+        self.test_mode.setToolTip("If checked, example frames are loaded from the 'test-data' folder.")
+
         self.test_mode.setChecked(current_settings["test_mode"])
         self.exposure_time = InputLine("Exposure time (ms)", current_settings["exposure_time_ms"])
         self.gain = InputLine("Gain", current_settings["gain"])
@@ -31,12 +33,16 @@ class SettingsPanel(QWidget):
         self.p2 = InputLine("p2", current_settings["p2"])
         self.p1 = InputLine("p1", current_settings["p1"])
         self.p0 = InputLine("p0", current_settings["p0"])
+        self.recall_surface_range = InputLine("Recall surface range (um)", current_settings["recall_surface_range_um"])
+        self.recall_surface_step = InputLine("Recall surface step (um)", current_settings["recall_surface_step_um"])
 
         # Title labels
         self.camera_settings_label = QLabel("Camera settings")
         self.camera_settings_label.setStyleSheet("font: bold; font-size: 16px;")
         self.calibration_settings_label = QLabel("Calibration settings")
         self.calibration_settings_label.setStyleSheet("font: bold; font-size: 16px;")
+        self.recall_surface_label = QLabel("Recall surface settings")
+        self.recall_surface_label.setStyleSheet("font: bold; font-size: 16px;")
         self.calibration_settings_hint = QLabel("Calibration line is y = p2*x^2 + p1*x + p0")
         self.calibration_settings_hint.setContentsMargins(0, 0, 0, 0)
 
@@ -57,6 +63,9 @@ class SettingsPanel(QWidget):
         self.layout.addWidget(self.p1)
         self.layout.addWidget(self.p0)
         self.layout.addWidget(self.max_movement)
+        self.layout.addWidget(self.recall_surface_label)
+        self.layout.addWidget(self.recall_surface_range)
+        self.layout.addWidget(self.recall_surface_step)
         self.layout.addWidget(self.update_settings_button)
 
         self.update_settings_button.clicked.connect(self.update_settings)
@@ -73,7 +82,9 @@ class SettingsPanel(QWidget):
             "p2": self.p2.get_value(),
             "p1": self.p1.get_value(),
             "p0": self.p0.get_value(),
-            "max_movement": self.max_movement.get_value()
+            "max_movement": self.max_movement.get_value(),
+            "recall_surface_range_um": self.recall_surface_range.get_value(),
+            "recall_surface_step_um": self.recall_surface_step.get_value()
         }
 
         with open(self.config_path, "w") as f:

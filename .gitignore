@@ -6,3 +6,4 @@ src/led_autofocus/__pycache__/_fit_utilities.cpython-310.pyc
 src/led_autofocus/__pycache__/_settings_widget.cpython-310.pyc
 src/led_autofocus/__pycache__/_widget.cpython-310.pyc
 src/led_autofocus/__pycache__/ImageHandler.cpython-310.pyc
+src/led_autofocus/autofocus_config.json

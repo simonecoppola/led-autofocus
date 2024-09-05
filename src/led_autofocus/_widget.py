@@ -24,7 +24,7 @@ class AutofocusWidget(QWidget):
         super().__init__()
         self.setGeometry(100, 100, 550, 350) # 700
         self.min_size = self.size()
-        self.setMaximumHeight(450)
+        self.setMaximumHeight(350)
         self.setMaximumWidth(550)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.MinimumExpanding)
         self.setWindowTitle("Autofocus App")
@@ -41,7 +41,9 @@ class AutofocusWidget(QWidget):
         self.recall_focus_button = QPushButton("Recall Focus")
         self.recall_focus_button.setCheckable(True)
         self.show_camera_feed_button = QPushButton("Show camera feed")
-        self.close_camera = QPushButton("Close camera (requires re-initialisation)")
+        self.close_camera = QPushButton("Close camera")
+        self.recall_surface_btn = QPushButton("Recall Surface")
+
 
         # Lock and monitor buttons need to be checkable
         self.lock_button.setCheckable(True)
@@ -51,7 +53,7 @@ class AutofocusWidget(QWidget):
         # Plot widget for focus position
         self.plot_canvas = pg.PlotWidget(background=None)
         self.plot_canvas.setMinimumHeight(200)
-        self.plot_canvas.setMaximumHeight(250)
+        self.plot_canvas.setMaximumHeight(200)
 
         # Video widget for camera feed and projections
         self.video_view = pg.PlotWidget(background=None, visible=False)
@@ -77,10 +79,11 @@ class AutofocusWidget(QWidget):
         self.button_group.addWidget(self.monitor_button)
         self.button_group.addWidget(self.lock_button)
         self.button_group.addWidget(self.recall_focus_button)
+        self.button_group.addWidget(self.recall_surface_btn)
+        self.layout.addWidget(self.show_camera_feed_button, 6, 0, 1, 2)
         self.layout.addLayout(self.button_group, 1, 0, 1, 2)
         self.layout.addWidget(self.plot_canvas, 2, 0, 4, 2)
 
-        self.layout.addWidget(self.show_camera_feed_button, 6, 0, 1, 2)
 
         self.grid_layout = QGridLayout()
         self.grid_layout.addWidget(self.video_view, 0, 0, 2, 1)
@@ -116,26 +119,20 @@ class AutofocusWidget(QWidget):
         self.lock_button.clicked.connect(self._on_lock_button_clicked)
         self.show_camera_feed_button.clicked.connect(self._on_show_camera_feed_button_clicked)
         self.close_camera.clicked.connect(self._on_close_camera_button_clicked)
+        self.recall_surface_btn.clicked.connect(self.recall_surface)
 
         self.value = 0
+
         # Variable storage.
         self.locked_position_profile_x = None
         self.locked_position_profile_y = None
         self.CameraHandler = None
 
-        self.recall_surface_btn = QPushButton("recall surface (test)")
-        self.layout.addWidget(self.recall_surface_btn)
-        self.recall_surface_btn.clicked.connect(self.recall_surface)
-
         # hide the video feed by default
         self.video_view.hide()
         self.x_canvas.hide()
         self.y_canvas.hide()
 
-        # hide the video feed by default
-        self.video_view.hide()
-        self.x_canvas.hide()
-        self.y_canvas.hide()
 
     def _on_close_camera_button_clicked(self):
         if hasattr(self, "camera"):
