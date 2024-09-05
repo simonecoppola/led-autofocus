@@ -215,6 +215,9 @@ class AutofocusWidget(QWidget):
                 self.locked_position_profile_x = self.CameraHandler.x_projection
                 self.locked_position_profile_y = self.CameraHandler.y_projection
 
+                self.locked_position_guess_x = self.CameraHandler.guessx
+                self.locked_position_guess_y = self.CameraHandler.guessy
+
                 # self.get_lock_position()
 
             self.lock_button.setText("Definitely focused!")
@@ -344,6 +347,13 @@ class AutofocusWidget(QWidget):
     def update(self):
         self.grab_images_on_thread()
 
+    def stop_autofocus(self):
+        if self.lock_button.isChecked():
+            self.lock_button.setChecked(False)
+
+    # def start_autofocus(self):
+    #     self.lock_button.isChecked():
+
 
 
     # TODO: check if this work on the microscope.
@@ -354,8 +364,8 @@ class AutofocusWidget(QWidget):
         It is useful to take into account the fact that the sample does not sit perfectly horizontal.
         :return:
         """
-        max_travel_um = 4  # this eventually should be a parameter in the json file.
-        step_travel_um = 0.5  # this eventually should be a parameter in the json file.
+        max_travel_um = 20  # this eventually should be a parameter in the json file.
+        step_travel_um = 0.1  # this eventually should be a parameter in the json file.
         if self.CameraHandler is None:
             print("Camera handler is none. Could not acquire.")
             pass
@@ -380,7 +390,6 @@ class AutofocusWidget(QWidget):
             # loop through the z-movements
             for movement in z_movements:
                 self.mmc.setZPosition(current_z+movement)
-                sleep(0.1)
                 difference_x = self.locked_position_profile_x-self.CameraHandler.x_projection
                 difference_y = self.locked_position_profile_y-self.CameraHandler.y_projection
 
@@ -401,6 +410,12 @@ class AutofocusWidget(QWidget):
 
             # final move to the position closest to the surface.
             self.mmc.setZPosition(surface_position)
+
+            # set fit profiles to true again
+            self.CameraHandler.guessx = self.locked_position_guess_x
+            self.CameraHandler.guessy = self.locked_position_guess_y
+            self.CameraHandler.fit_profiles = True
+
 
 
 def test_function():
