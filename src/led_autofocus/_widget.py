@@ -364,8 +364,9 @@ class AutofocusWidget(QWidget):
         It is useful to take into account the fact that the sample does not sit perfectly horizontal.
         :return:
         """
-        max_travel_um = 50  # this eventually should be a parameter in the json file.
-        step_travel_um = 0.25  # this eventually should be a parameter in the json file.
+        max_travel_um = self.settings["recall_surface_range_um"]
+        step_travel_um = self.settings["recall_surface_step_um"]
+
         if self.CameraHandler is None:
             print("Camera handler is none. Could not acquire.")
             pass
@@ -373,7 +374,6 @@ class AutofocusWidget(QWidget):
             # If camera was grabbing, stop.
             if self.camera.IsGrabbing():
                 self.camera.StopGrabbing()
-
             # Now need to acquire a z-stack
             try:
                 current_z = self.mmc.getZPosition()
