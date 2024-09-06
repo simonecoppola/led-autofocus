@@ -146,8 +146,8 @@ class AutofocusWidget(QWidget):
         self.settings_panel.show()
 
     def _on_initialise_button_clicked(self):
-        self.guessx = None
-        self.guessy = None
+        self.CameraHandler.guessx = None
+        self.CameraHandler.guessy = None
         self.current_z = 0
         self.last_movement = 0
 
@@ -184,7 +184,7 @@ class AutofocusWidget(QWidget):
         self.exposure_time_ms = self.settings["exposure_time_ms"]
         self.camera.ExposureTime.SetValue(self.exposure_time_ms * 1000)
         print("Camera initialised!")
-        self.video_view.resize(np.ceil(self.camera.Width.Value/4), np.ceil(self.camera.Height.Value/4))
+        self.video_view.resize(int(self.camera.Width.Value/4), int(self.camera.Height.Value/4))
         self.video_view.setAspectLocked(True)
 
         # z-movement parameters
@@ -239,7 +239,7 @@ class AutofocusWidget(QWidget):
                 self.camera.StartGrabbing(pylon.GrabStrategy_OneByOne, pylon.GrabLoop_ProvidedByInstantCamera)
                 print('Free-run acquisition started!')
             if not self.timer.isActive():
-                self.timer.start(1*self.camera.ExposureTime.Value/1000)
+                self.timer.start(int(self.camera.ExposureTime.Value/1000))
 
             # Clear the graph whenever monitor is restarted
             self.data = []

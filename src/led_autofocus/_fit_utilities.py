@@ -17,7 +17,7 @@ def Gaussian1D(x: np.ndarray, i0: float, x0: float, sx: float, amp: float) -> np
     return eq
 
 
-def fit_gaussian(x: np.ndarray, profile:np.ndarray, init_guess: list) -> np.ndarray:
+def fit_gaussian(x: np.ndarray, profile:np.ndarray, init_guess: list, bounds=(-np.inf, np.inf)) -> np.ndarray:
     """
     Fit a Gaussian to a profile
     :param x: x-coordinate of the profile
@@ -25,7 +25,7 @@ def fit_gaussian(x: np.ndarray, profile:np.ndarray, init_guess: list) -> np.ndar
     :param init_guess: initial guess, [i0, x0, sx, amp]
     :return: final guess, [i0, x0, sx, amp]
     """
-    popt, pcov = curve_fit(Gaussian1D, x, profile, p0=init_guess)
+    popt, pcov = curve_fit(Gaussian1D, x, profile, p0=init_guess, bounds=bounds)
     return popt
 
 def get_initial_guess(profile: np.ndarray) -> list:
