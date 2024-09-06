@@ -48,10 +48,6 @@ class ImageHandler(py.ImageEventHandler):
                 # print(self.fit_profiles)
 
                 if self.fit_profiles:
-                    if self.guessx is None:
-                        self.guessx = get_initial_guess(self.x_projection)
-                        self.guessy = get_initial_guess(self.y_projection)
-
                     # print(self.guessx)
                     # TODO: this SHOULD NOT BE HARDCODED
                     lower_bounds_x = [0.16645382983589865, 1873.5450515219172, 168.1517174143853, 0.6842269616042337]
@@ -60,6 +56,11 @@ class ImageHandler(py.ImageEventHandler):
                     lower_bounds_y = [0.3044611777064768, 1051.7494828481322, 185.65333974112244, 0.5134878312787584]
                     upper_bounds_y = [0.42110617483966817, 1209.3809746481377, 462.2202979953617, 0.6639392163134101]
 
+                    if self.guessx is None:
+                        # self.guessx = get_initial_guess(self.x_projection)
+                        # self.guessy = get_initial_guess(self.y_projection)
+                        self.guessx = [sum(x)/2 for x in zip(lower_bounds_x, upper_bounds_x)]
+                        self.guessy = [sum(x)/2 for x in zip(lower_bounds_y, upper_bounds_y)]
                     self.guessx = fit_gaussian(
                                         np.linspace(0, self.x_projection.shape[0], self.x_projection.shape[0]), self.x_projection,
                                         self.guessx, bounds= (lower_bounds_x, upper_bounds_x))

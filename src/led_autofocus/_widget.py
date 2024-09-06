@@ -146,8 +146,7 @@ class AutofocusWidget(QWidget):
         self.settings_panel.show()
 
     def _on_initialise_button_clicked(self):
-        self.CameraHandler.guessx = None
-        self.CameraHandler.guessy = None
+
         self.current_z = 0
         self.last_movement = 0
 
@@ -194,6 +193,10 @@ class AutofocusWidget(QWidget):
         self.CameraHandler = ImageHandler(self.camera)
         # register with the pylon loop
         self.camera.RegisterImageEventHandler(self.CameraHandler, pylon.RegistrationMode_ReplaceAll, pylon.Cleanup_None)
+
+        # reset guesses
+        self.CameraHandler.guessx = None
+        self.CameraHandler.guessy = None
 
     def _on_lock_button_clicked(self):
         if self.lock_button.isChecked():
@@ -361,8 +364,8 @@ class AutofocusWidget(QWidget):
         It is useful to take into account the fact that the sample does not sit perfectly horizontal.
         :return:
         """
-        max_travel_um = 20  # this eventually should be a parameter in the json file.
-        step_travel_um = 0.1  # this eventually should be a parameter in the json file.
+        max_travel_um = 50  # this eventually should be a parameter in the json file.
+        step_travel_um = 0.25  # this eventually should be a parameter in the json file.
         if self.CameraHandler is None:
             print("Camera handler is none. Could not acquire.")
             pass
