@@ -40,8 +40,8 @@ class ImageHandler(py.ImageEventHandler):
                 # print(f"Image grabbed at {now.time()}, shape: {img.shape}")
                 # print("New image grabbed at", now.time())
                 self.img = grabResult.Array
-                self.x_projection = self.img.sum(axis=0)
-                self.y_projection = self.img.sum(axis=1)
+                self.x_projection = np.divide(self.img.sum(axis=0), np.max(self.img.sum(axis=0)))
+                self.y_projection = np.divide(self.img.sum(axis=1), np.max(self.img.sum(axis=1)))
                 self.timestamp = grabResult.TimeStamp
 
                 # print(self.timestamp)
@@ -53,10 +53,18 @@ class ImageHandler(py.ImageEventHandler):
                         self.guessy = get_initial_guess(self.y_projection)
 
                     # print(self.guessx)
-                    self.guessx = fit_gaussian(np.linspace(0, self.x_projection.shape[0], self.x_projection.shape[0]), self.x_projection,
-                                        self.guessx)
+                    # TODO: this SHOULD NOT BE HARDCODED
+                    lower_bounds_x = [0.16645382983589865, 1873.5450515219172, 168.1517174143853, 0.6842269616042337]
+                    upper_bounds_x = [0.296276181455513, 1887.9348764886313, 297.8739296981674, 0.8774971871010732]
+
+                    lower_bounds_y = [0.3044611777064768, 1051.7494828481322, 185.65333974112244, 0.5134878312787584]
+                    upper_bounds_y = [0.42110617483966817, 1209.3809746481377, 462.2202979953617, 0.6639392163134101]
+
+                    self.guessx = fit_gaussian(
+                                        np.linspace(0, self.x_projection.shape[0], self.x_projection.shape[0]), self.x_projection,
+                                        self.guessx, bounds= (lower_bounds_x, upper_bounds_x))
                     self.guessy = fit_gaussian(np.linspace(0, self.y_projection.shape[0], self.y_projection.shape[0]), self.y_projection,
-                                        self.guessy)
+                                        self.guessy, bounds=(lower_bounds_y, upper_bounds_y))
 
                     self.x_fit = Gaussian1D(np.linspace(0, self.x_projection.shape[0], self.x_projection.shape[0]), *self.guessx)
                     self.y_fit = Gaussian1D(np.linspace(0, self.y_projection.shape[0], self.y_projection.shape[0]), *self.guessy)
