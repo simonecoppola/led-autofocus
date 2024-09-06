@@ -9,8 +9,7 @@ from pymmcore_plus import CMMCorePlus
 from .ImageHandler import ImageHandler
 from pathlib import Path
 from ._settings_widget import SettingsPanel
-from qtpy.QtCore import QObject, QThread
-from time import sleep
+
 
 testing = False
 
@@ -188,6 +187,7 @@ class AutofocusWidget(QWidget):
 
         # z-movement parameters
         self.max_movement = self.settings["max_movement"]
+        self.update_interval = self.settings["update_interval_s"]
 
         # instantiate callback handler
         self.CameraHandler = ImageHandler(self.camera)
@@ -242,7 +242,7 @@ class AutofocusWidget(QWidget):
                 self.camera.StartGrabbing(pylon.GrabStrategy_OneByOne, pylon.GrabLoop_ProvidedByInstantCamera)
                 print('Free-run acquisition started!')
             if not self.timer.isActive():
-                self.timer.start(int(self.camera.ExposureTime.Value/1000))
+                self.timer.start(int(self.update_interval*1000))
 
             # Clear the graph whenever monitor is restarted
             self.data = []
@@ -263,7 +263,7 @@ class AutofocusWidget(QWidget):
                 self.camera.StartGrabbing(pylon.GrabStrategy_OneByOne, pylon.GrabLoop_ProvidedByInstantCamera)
                 print('Free-run acquisition started!')
             if not self.timer.isActive():
-                self.timer.start(self.camera.ExposureTime.Value/1000)
+                self.timer.start(int(self.update_interval*1000))
         else:
             self.video_view.hide()
             self.x_canvas.hide()

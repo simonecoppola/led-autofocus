@@ -30,6 +30,7 @@ class SettingsPanel(QWidget):
         self.offset_x = InputLine("Offset X", current_settings["offset_x"])
         self.offset_y = InputLine("Offset Y", current_settings["offset_y"])
         self.max_movement = InputLine("Max movement (um)", current_settings["max_movement"])
+        self.update_interval = InputLine("Update interval (s)", current_settings["update_interval_s"])
         self.p2 = InputLine("p2", current_settings["p2"])
         self.p1 = InputLine("p1", current_settings["p1"])
         self.p0 = InputLine("p0", current_settings["p0"])
@@ -62,6 +63,7 @@ class SettingsPanel(QWidget):
         self.layout.addWidget(self.p2)
         self.layout.addWidget(self.p1)
         self.layout.addWidget(self.p0)
+        self.layout.addWidget(self.update_interval)
         self.layout.addWidget(self.max_movement)
         self.layout.addWidget(self.recall_surface_label)
         self.layout.addWidget(self.recall_surface_range)
@@ -84,7 +86,8 @@ class SettingsPanel(QWidget):
             "p0": self.p0.get_value(),
             "max_movement": self.max_movement.get_value(),
             "recall_surface_range_um": self.recall_surface_range.get_value(),
-            "recall_surface_step_um": self.recall_surface_step.get_value()
+            "recall_surface_step_um": self.recall_surface_step.get_value(),
+            "update_interval_s": self.update_interval.get_value()
         }
 
         with open(self.config_path, "w") as f:
