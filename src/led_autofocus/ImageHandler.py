@@ -36,19 +36,12 @@ class ImageHandler(py.ImageEventHandler):
         """
         try:
             if grabResult.GrabSucceeded():
-                # check image contents
-                # print(f"Image grabbed at {now.time()}, shape: {img.shape}")
-                # print("New image grabbed at", now.time())
                 self.img = grabResult.Array
                 self.x_projection = np.divide(self.img.sum(axis=0), np.max(self.img.sum(axis=0)))
                 self.y_projection = np.divide(self.img.sum(axis=1), np.max(self.img.sum(axis=1)))
                 self.timestamp = grabResult.TimeStamp
 
-                # print(self.timestamp)
-                # print(self.fit_profiles)
-
                 if self.fit_profiles:
-                    # print(self.guessx)
                     # TODO: this SHOULD NOT BE HARDCODED
                     lower_bounds_x = [0.16645382983589865, 1873.5450515219172, 168.1517174143853, 0.6842269616042337]
                     upper_bounds_x = [0.296276181455513, 1887.9348764886313, 297.8739296981674, 0.8774971871010732]
@@ -57,8 +50,6 @@ class ImageHandler(py.ImageEventHandler):
                     upper_bounds_y = [0.42110617483966817, 1209.3809746481377, 462.2202979953617, 0.6639392163134101]
 
                     if self.guessx is None:
-                        # self.guessx = get_initial_guess(self.x_projection)
-                        # self.guessy = get_initial_guess(self.y_projection)
                         self.guessx = [sum(x)/2 for x in zip(lower_bounds_x, upper_bounds_x)]
                         self.guessy = [sum(x)/2 for x in zip(lower_bounds_y, upper_bounds_y)]
                     self.guessx = fit_gaussian(
