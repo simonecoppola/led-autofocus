@@ -304,8 +304,8 @@ class AutofocusWidget(QWidget):
                 self.lock_button.setStyleSheet("font: italic bold; color: white; background-color: red;")
                 self.lock_button.setText("Definitely NOT focused!")
 
+                # TODO: here need to add what to do if autofocus fails. Possibly find surface and attempt to lock again?
             else:
-                # print(f"Required movement is {self.required_movement * 1000}")
                 self.last_movement = self.required_movement
                 if np.abs(self.required_movement)*1000 > 0:
                     try:
@@ -314,7 +314,8 @@ class AutofocusWidget(QWidget):
                         pass
 
         # clear data if too large
-        if len(self.time) > 100:
+        # TODO: value below should NOT be hardcoded.
+        if len(self.time) * self.settings["update_interval_s"] > 60:
             self.time = []
             self.data = []
             self.ptr = 0
@@ -339,7 +340,7 @@ class AutofocusWidget(QWidget):
 
         if self.monitor_button.isChecked():
             self.data.append(self.current_z)
-            self.time.append(self.ptr)
+            self.time.append(self.ptr*self.settings["update_interval_s"])
 
         self.update_plots_and_position()
         return self
