@@ -23,10 +23,12 @@ if testing:
 class AutofocusWidget(QWidget):
     def __init__(self):
         super().__init__()
-        self.setGeometry(100, 100, 550, 350) # 700
-        self.min_size = self.size()
         self.setMaximumHeight(350)
         self.setMaximumWidth(550)
+        self.max_size = [550, 550]
+        self.setGeometry(100, 100, 550, 350) # 700
+        self.min_size = self.size()
+        print(self.min_size)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.MinimumExpanding)
         self.setWindowTitle("Autofocus App")
 
@@ -206,7 +208,7 @@ class AutofocusWidget(QWidget):
             if not self.camera.IsGrabbing():
                 self.CameraHandler.fit_profiles = True
                 self.camera.StartGrabbing(pylon.GrabStrategy_OneByOne, pylon.GrabLoop_ProvidedByInstantCamera)
-                time_to_wait = float(self.exposure_time_ms)/1000
+                time_to_wait = 5*float(self.exposure_time_ms)/1000
                 print(f'Free-run acquisition started! Waiting for {time_to_wait} seconds.')
                 time.sleep(time_to_wait) # give the camera time to acquire the first image
 
@@ -260,6 +262,8 @@ class AutofocusWidget(QWidget):
     def _on_show_camera_feed_button_clicked(self):
         # start acquisition and timer if not already started
         if self.show_camera_feed_button.isChecked():
+            self.adjustSize()
+            self.resize(self.max_size[0], self.max_size[1])
             self.video_view.show()
             self.x_canvas.show()
             self.y_canvas.show()
