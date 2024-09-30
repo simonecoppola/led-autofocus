@@ -23,7 +23,7 @@ if testing:
 class AutofocusWidget(QWidget):
     def __init__(self):
         super().__init__()
-        self.setMaximumHeight(350)
+        self.setMaximumHeight(550)
         self.setMaximumWidth(550)
         self.max_size = [550, 550]
         self.setGeometry(100, 100, 550, 350) # 700

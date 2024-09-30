@@ -1,1 +1,1 @@
-{"test_mode": false, "exposure_time_ms": 100, "gain": 25, "width": 3860, "height": 2178, "offset_x": 0, "offset_y": 0, "p2": -0.069, "p1": -23.2, "p0": 44.15, "max_movement": 10.0, "recall_surface_range_um": 50.0, "recall_surface_step_um": 0.25, "update_interval_s": 0.1}
+{"test_mode": true, "exposure_time_ms": 100, "gain": 25, "width": 3860, "height": 2178, "offset_x": 0, "offset_y": 0, "p2": -0.069, "p1": -23.2, "p0": 44.15, "max_movement": 10.0, "recall_surface_range_um": 50.0, "recall_surface_step_um": 0.25, "update_interval_s": 0.1}
