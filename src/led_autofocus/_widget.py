@@ -1,3 +1,5 @@
+import time
+
 from qtpy.QtWidgets import (QApplication, QWidget, QPushButton, QHBoxLayout, QGridLayout, QSizePolicy)
 import pyqtgraph as pg
 from pypylon import pylon
@@ -204,7 +206,9 @@ class AutofocusWidget(QWidget):
             if not self.camera.IsGrabbing():
                 self.CameraHandler.fit_profiles = True
                 self.camera.StartGrabbing(pylon.GrabStrategy_OneByOne, pylon.GrabLoop_ProvidedByInstantCamera)
-                print('Free-run acquisition started!')
+                time_to_wait = float(self.exposure_time_ms)/1000
+                print(f'Free-run acquisition started! Waiting for {time_to_wait} seconds.')
+                time.sleep(time_to_wait) # give the camera time to acquire the first image
 
             if self.recall_focus_button.isChecked():
                 # pass because we don't need to recalculate the lock position.
