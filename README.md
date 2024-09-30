@@ -7,6 +7,8 @@ No specific qt backend is specified in the requirements, so you will have to ins
 
 **Important:** the code was developed to be used with a Basler camera, so it uses the Basler pylon for camera control.
 
+To install, clone the repository, navigate to it in the terminal and then run `pip install .`
+
 Example and calibration codes are in the `examples` folder.
 
 The project is very much in the early stages so bugs are likely.
