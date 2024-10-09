@@ -122,7 +122,7 @@ class AutofocusWidget(QWidget):
         self.lock_button.clicked.connect(self._on_lock_button_clicked)
         self.show_camera_feed_button.clicked.connect(self._on_show_camera_feed_button_clicked)
         self.close_camera.clicked.connect(self._on_close_camera_button_clicked)
-        self.recall_surface_btn.clicked.connect(self.recall_surface)
+        self.recall_surface_btn.clicked.connect(self._recall_surface)
 
         self.value = 0
 
@@ -366,7 +366,7 @@ class AutofocusWidget(QWidget):
 
 
     # TODO: check if this work on the microscope.
-    def recall_surface(self):
+    def _recall_surface(self):
         """
         Command to look for a surface.
         It is called after the stage is moved significantly in xy, or the objective lowered than raised.
@@ -396,11 +396,26 @@ class AutofocusWidget(QWidget):
 
             self.CameraHandler.fit_profiles = False  # disable this for now - we don't need to fit anything
             self.camera.StartGrabbing(pylon.GrabStrategy_OneByOne, pylon.GrabLoop_ProvidedByInstantCamera)
+
+            # get the target profiles and normalisation factors
+            normalisation_factor_x = np.max(self.CameraHandler.locked_position_profile_x)
+            normalisation_factor_y = np.max(self.CameraHandler.locked_position_profile_y)
+
+            target_profile_x = self.locked_position_profile_x  / normalisation_factor_x
+            target_profile_y = self.locked_position_profile_y / normalisation_factor_y
+
             # loop through the z-movements
             for movement in z_movements:
                 self.mmc.setZPosition(current_z+movement)
-                difference_x = self.locked_position_profile_x-self.CameraHandler.x_projection
-                difference_y = self.locked_position_profile_y-self.CameraHandler.y_projection
+
+                current_profile_x = self.CameraHandler.x_projection / normalisation_factor_x
+                current_profile_y = self.CameraHandler.y_projection / normalisation_factor_y
+
+                difference_x = target_profile_x - current_profile_x
+                difference_y = target_profile_y - current_profile_y
+
+                # difference_x = self.locked_position_profile_x-self.CameraHandler.x_projection
+                # difference_y = self.locked_position_profile_y-self.CameraHandler.y_projection
 
                 mean_distance_squared_x = np.mean(np.power(difference_x, 2))
                 mean_distance_squared_y = np.mean(np.power(difference_y, 2))
@@ -408,7 +423,12 @@ class AutofocusWidget(QWidget):
                 current_pixel_distance = mean_distance_squared_x + mean_distance_squared_y
 
                 pixel_distances.append(current_pixel_distance)
-                # should plot here to check what's happening.
+
+                # FIXME: can be made WAYY more elegant, but for testing ok.
+                # essentially at some point we will hit the same profile as the target, which should have a very
+                # small error. We can stop there without continuing.
+                if current_pixel_distance < 0.001:
+                    break
             self.camera.StopGrabbing()
 
             # get the index of the smallest value
