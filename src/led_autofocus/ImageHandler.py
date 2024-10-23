@@ -52,6 +52,7 @@ class ImageHandler(py.ImageEventHandler):
                     if self.guessx is None:
                         self.guessx = [sum(x)/2 for x in zip(lower_bounds_x, upper_bounds_x)]
                         self.guessy = [sum(x)/2 for x in zip(lower_bounds_y, upper_bounds_y)]
+
                     self.guessx = fit_gaussian(
                                         np.linspace(0, self.x_projection.shape[0], self.x_projection.shape[0]), self.x_projection,
                                         self.guessx, bounds= (lower_bounds_x, upper_bounds_x))

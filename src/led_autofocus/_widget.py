@@ -13,27 +13,21 @@ from pathlib import Path
 from ._settings_widget import SettingsPanel
 
 
-testing = False
-
-if testing:
-    # enable emulation
-    import os
-    os.environ["PYLON_CAMEMU"] = "1"
-
 class AutofocusWidget(QWidget):
-    def __init__(self):
+    def __init__(self, mmc: CMMCorePlus = CMMCorePlus.instance()):
         super().__init__()
+        # PYMMCORE
+        self.mmc = mmc
+
+        # WINDOW SETTINGS
         self.setMaximumHeight(550)
         self.setMaximumWidth(550)
         self.max_size = [550, 550]
-        self.setGeometry(100, 100, 550, 350) # 700
+        self.setGeometry(100, 100, 550, 350)
         self.min_size = self.size()
         print(self.min_size)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.MinimumExpanding)
         self.setWindowTitle("Autofocus App")
-
-        # PYMMCORE
-        self.mmc = CMMCorePlus.instance()
 
         # BUTTONS
         self.camera_settings_button = QPushButton("Camera settings")
@@ -46,7 +40,6 @@ class AutofocusWidget(QWidget):
         self.show_camera_feed_button = QPushButton("Show camera feed")
         self.close_camera = QPushButton("Close camera")
         self.recall_surface_btn = QPushButton("Recall Surface")
-
 
         # Lock and monitor buttons need to be checkable
         self.lock_button.setCheckable(True)
@@ -87,7 +80,6 @@ class AutofocusWidget(QWidget):
         self.layout.addLayout(self.button_group, 1, 0, 1, 2)
         self.layout.addWidget(self.plot_canvas, 2, 0, 4, 2)
 
-
         self.grid_layout = QGridLayout()
         self.grid_layout.addWidget(self.video_view, 0, 0, 2, 1)
         self.grid_layout.addWidget(self.x_canvas, 0, 1, 1, 1)
@@ -110,7 +102,7 @@ class AutofocusWidget(QWidget):
         self.y_plot = self.y_canvas.plot(pen='r')
         self.y_fit_plot = self.y_canvas.plot(pen=pg.mkPen('b', style=Qt.DashLine))
 
-        # DATA STORAGE
+        # DATA STORAGE FOR MONITORING
         self.data = []
         self.time = []
         self.ptr = 0
@@ -124,9 +116,7 @@ class AutofocusWidget(QWidget):
         self.close_camera.clicked.connect(self._on_close_camera_button_clicked)
         self.recall_surface_btn.clicked.connect(self._recall_surface)
 
-        self.value = 0
-
-        # Variable storage.
+        # Variable storage
         self.locked_position_profile_x = None
         self.locked_position_profile_y = None
         self.CameraHandler = None
@@ -136,7 +126,6 @@ class AutofocusWidget(QWidget):
         self.x_canvas.hide()
         self.y_canvas.hide()
 
-
     def _on_close_camera_button_clicked(self):
         if hasattr(self, "camera"):
             self.camera.Close()
@@ -145,11 +134,14 @@ class AutofocusWidget(QWidget):
             print("No camera to close!")
 
     def _on_camera_settings_button_clicked(self):
+        """
+        Initialise and open the settings panel.
+        :return:
+        """
         self.settings_panel = SettingsPanel()
         self.settings_panel.show()
 
     def _on_initialise_button_clicked(self):
-
         self.current_z = 0
         self.last_movement = 0
 
@@ -174,6 +166,7 @@ class AutofocusWidget(QWidget):
             # Enable custom test images
             self.camera.ImageFileMode.Value = "On"
             # Load custom test image from disk
+            print(str(Path(__file__).parent / 'test-data'))
             self.camera.ImageFilename.Value = str(Path(__file__).parent / 'test-data')
 
         # Set camera parameters
@@ -217,7 +210,7 @@ class AutofocusWidget(QWidget):
                 pass
             else:
                 # calculate the lock position
-                self.locked_position = self.calculate_position(self.CameraHandler.guessx, self.CameraHandler.guessy)
+                self.locked_position = self._calculate_position(self.CameraHandler.guessx, self.CameraHandler.guessy)
                 self.locked_position_profile_x = self.CameraHandler.x_projection
                 self.locked_position_profile_y = self.CameraHandler.y_projection
 
@@ -281,7 +274,7 @@ class AutofocusWidget(QWidget):
 
         pass
 
-    def update_plots_and_position(self):
+    def _update_plots_and_position(self):
         # update plots
         if self.show_camera_feed_button.isChecked():
             self.video_canvas.setImage(self.CameraHandler.img)
@@ -331,39 +324,14 @@ class AutofocusWidget(QWidget):
         self.ptr += 1
         return
 
-    def calculate_position(self, guessx, guessy):
+    def _calculate_position(self, guessx, guessy):
         polyfit = [self.settings["p2"], self.settings["p1"], self.settings["p0"]]
         calculated_position = -np.polyval(polyfit, guessx[2] - guessy[2])
         return calculated_position
 
-    def grab_images_on_thread(self):
-        if self.lock_button.isChecked() or self.monitor_button.isChecked():
-
-            # polyfit = [self.settings["p2"], self.settings["p1"], self.settings["p0"]]
-            try:
-                self.current_z = self.calculate_position(self.CameraHandler.guessx, self.CameraHandler.guessy)
-                # self.current_z = -np.polyval(polyfit, self.CameraHandler.guessx[2] - self.CameraHandler.guessy[2])
-            except TypeError:
-                print("empty?")
-
-        if self.monitor_button.isChecked():
-            self.data.append(self.current_z)
-            self.time.append(self.ptr*self.settings["update_interval_s"])
-
-        self.update_plots_and_position()
-        return self
-
-    def update(self):
-        self.grab_images_on_thread()
-
-    def stop_autofocus(self):
+    def _stop_autofocus(self):
         if self.lock_button.isChecked():
             self.lock_button.setChecked(False)
-
-    # def start_autofocus(self):
-    #     self.lock_button.isChecked():
-
-
 
     # TODO: check if this work on the microscope.
     def _recall_surface(self):
@@ -371,7 +339,6 @@ class AutofocusWidget(QWidget):
         Command to look for a surface.
         It is called after the stage is moved significantly in xy, or the objective lowered than raised.
         It is useful to take into account the fact that the sample does not sit perfectly horizontal.
-        :return:
         """
         max_travel_um = self.settings["recall_surface_range_um"]
         step_travel_um = self.settings["recall_surface_step_um"]
@@ -414,9 +381,6 @@ class AutofocusWidget(QWidget):
                 difference_x = target_profile_x - current_profile_x
                 difference_y = target_profile_y - current_profile_y
 
-                # difference_x = self.locked_position_profile_x-self.CameraHandler.x_projection
-                # difference_y = self.locked_position_profile_y-self.CameraHandler.y_projection
-
                 mean_distance_squared_x = np.mean(np.power(difference_x, 2))
                 mean_distance_squared_y = np.mean(np.power(difference_y, 2))
 
@@ -427,8 +391,11 @@ class AutofocusWidget(QWidget):
                 # FIXME: can be made WAYY more elegant, but for testing ok.
                 # essentially at some point we will hit the same profile as the target, which should have a very
                 # small error. We can stop there without continuing.
-                if current_pixel_distance < 0.001:
+                # could also try to do this with fitting?
+
+                if current_pixel_distance < 0.01:
                     break
+
             self.camera.StopGrabbing()
 
             # get the index of the smallest value
@@ -444,7 +411,6 @@ class AutofocusWidget(QWidget):
             self.CameraHandler.guessx = self.locked_position_guess_x
             self.CameraHandler.guessy = self.locked_position_guess_y
             self.CameraHandler.fit_profiles = True
-
 
 
 def test_function():
