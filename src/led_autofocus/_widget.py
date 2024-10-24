@@ -11,7 +11,7 @@ from pymmcore_plus import CMMCorePlus
 from .ImageHandler import ImageHandler
 from pathlib import Path
 from ._settings_widget import SettingsPanel
-
+import logging
 
 testing = False
 
@@ -398,8 +398,8 @@ class AutofocusWidget(QWidget):
             self.camera.StartGrabbing(pylon.GrabStrategy_OneByOne, pylon.GrabLoop_ProvidedByInstantCamera)
 
             # get the target profiles and normalisation factors
-            normalisation_factor_x = np.max(self.CameraHandler.locked_position_profile_x)
-            normalisation_factor_y = np.max(self.CameraHandler.locked_position_profile_y)
+            normalisation_factor_x = np.max(self.locked_position_profile_x)
+            normalisation_factor_y = np.max(self.locked_position_profile_y)
 
             target_profile_x = self.locked_position_profile_x  / normalisation_factor_x
             target_profile_y = self.locked_position_profile_y / normalisation_factor_y
@@ -422,6 +422,9 @@ class AutofocusWidget(QWidget):
 
                 current_pixel_distance = mean_distance_squared_x + mean_distance_squared_y
 
+
+                logging.info(f"Current pixel distance is: {current_pixel_distance}")
+
                 pixel_distances.append(current_pixel_distance)
 
                 # FIXME: can be made WAYY more elegant, but for testing ok.
@@ -434,11 +437,15 @@ class AutofocusWidget(QWidget):
             # get the index of the smallest value
             index_smallest = np.where(pixel_distances == np.min(pixel_distances))
 
+
             # calculate surface position
             surface_position = current_z + z_movements[index_smallest[0][0]]
 
+            logging.info(f"Recall surface complete. Initial position was: {current_z}, surface position is: {surface_position}")
+
             # final move to the position closest to the surface.
             self.mmc.setZPosition(surface_position)
+
 
             # set fit profiles to true again
             self.CameraHandler.guessx = self.locked_position_guess_x
