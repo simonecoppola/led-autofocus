@@ -53,11 +53,10 @@ class ImageHandler(py.ImageEventHandler):
                         self.guessx = [sum(x)/2 for x in zip(lower_bounds_x, upper_bounds_x)]
                         self.guessy = [sum(x)/2 for x in zip(lower_bounds_y, upper_bounds_y)]
 
-                    self.guessx = fit_gaussian(
-                                        np.linspace(0, self.x_projection.shape[0], self.x_projection.shape[0]), self.x_projection,
-                                        self.guessx, bounds= (lower_bounds_x, upper_bounds_x))
-                    self.guessy = fit_gaussian(np.linspace(0, self.y_projection.shape[0], self.y_projection.shape[0]), self.y_projection,
-                                        self.guessy, bounds=(lower_bounds_y, upper_bounds_y))
+                    self.guessx = fit_gaussian(np.linspace(0, self.x_projection.shape[0], self.x_projection.shape[0]),
+                                               self.x_projection, self.guessx, bounds= (lower_bounds_x, upper_bounds_x))
+                    self.guessy = fit_gaussian(np.linspace(0, self.y_projection.shape[0], self.y_projection.shape[0]),
+                                               self.y_projection, self.guessy, bounds=(lower_bounds_y, upper_bounds_y))
 
                     self.x_fit = Gaussian1D(np.linspace(0, self.x_projection.shape[0], self.x_projection.shape[0]), *self.guessx)
                     self.y_fit = Gaussian1D(np.linspace(0, self.y_projection.shape[0], self.y_projection.shape[0]), *self.guessy)

@@ -34,6 +34,7 @@ def fit_gaussian(x: np.ndarray, profile: np.ndarray, init_guess: list, bounds=(-
     else:
         return popt
 
+
 def get_initial_guess(profile: np.ndarray) -> list:
     """
     Get initial guess for Gaussian fit
@@ -45,6 +46,7 @@ def get_initial_guess(profile: np.ndarray) -> list:
     sx = x0/4
     amp = np.max(profile) - i0
     return [i0, x0, sx, amp]
+
 
 if __name__ == "__main__":
     # Test the Gaussian fitting

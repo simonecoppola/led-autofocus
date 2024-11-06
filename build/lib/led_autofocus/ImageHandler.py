@@ -1,12 +1,6 @@
 import pypylon.pylon as py
 import numpy as np
-
-# handle exception trace for debugging
-# background loop
 import traceback
-import datetime
-import time
-import random
 
 class ImageHandler(py.ImageEventHandler):
     def __init__(self, cam):
@@ -27,17 +21,14 @@ class ImageHandler(py.ImageEventHandler):
 
     def OnImageGrabbed(self, camera, grabResult):
         """ from pylon demo - adapted for my needs
-            we get called on every image
             !! this code is run in a pylon thread context
+
             always wrap your code in the try .. except to capture
             errors inside the grabbing as this can't be properly reported from
             the background thread to the foreground python code
         """
         try:
             if grabResult.GrabSucceeded():
-                # check image contents
-                # print(f"Image grabbed at {now.time()}, shape: {img.shape}")
-                # print("New image grabbed at", now.time())
                 self.img = grabResult.Array
                 self.x_projection = self.img.sum(axis=0)
                 self.y_projection = self.img.sum(axis=1)

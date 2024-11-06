@@ -12,6 +12,8 @@ from .ImageHandler import ImageHandler
 from pathlib import Path
 from ._settings_widget import SettingsPanel
 import logging
+import os
+
 
 class AutofocusWidget(QWidget):
     def __init__(self, mmc: CMMCorePlus = CMMCorePlus.instance()):
@@ -90,7 +92,7 @@ class AutofocusWidget(QWidget):
 
         # TIMER
         self.timer = QtCore.QTimer()
-        self.timer.timeout.connect(self.update)
+        self.timer.timeout.connect(self._update_plots_and_position)
 
         # PLOT
         self.monitor_curve = self.plot_canvas.plot(pen='b')
@@ -155,7 +157,6 @@ class AutofocusWidget(QWidget):
             self.settings = json.load(f)
 
         if self.settings["test_mode"]:
-            import os
             os.environ["PYLON_CAMEMU"] = "1"
 
         self.camera = pylon.InstantCamera(pylon.TlFactory.GetInstance().CreateFirstDevice())
@@ -167,6 +168,13 @@ class AutofocusWidget(QWidget):
             self.camera.ImageFileMode.Value = "On"
             # Load custom test image from disk
             print(str(Path(__file__).parent / 'test-data'))
+
+            # overwrite width, height and offsets with test image settings
+            self.settings["width"] = 3860
+            self.settings["height"] = 2178
+            self.settings["offset_x"] = 0
+            self.settings["offset_y"] = 0
+
             self.camera.ImageFilename.Value = str(Path(__file__).parent / 'test-data')
 
         # Set camera parameters
@@ -239,7 +247,9 @@ class AutofocusWidget(QWidget):
                 pass
             else:
                 self.camera.StartGrabbing(pylon.GrabStrategy_OneByOne, pylon.GrabLoop_ProvidedByInstantCamera)
-                print('Free-run acquisition started!')
+                time_to_wait = 5*float(self.exposure_time_ms)/1000
+                print(f'Free-run acquisition started! Waiting for {time_to_wait} seconds.')
+                time.sleep(time_to_wait) # give the camera time to acquire the first image
             if not self.timer.isActive():
                 self.timer.start(int(self.update_interval*1000))
 
@@ -289,6 +299,7 @@ class AutofocusWidget(QWidget):
                 self.y_fit_plot.clear()
 
         if self.monitor_button.isChecked():
+            # logging.info(f"Monitoring! Current position is: {self.current_z}")
             self.monitor_curve.setData(self.time, self.data)
             if self.lock_button.isChecked():
                 self.locked_position_curve.setData(self.time, [(x * 0 + self.locked_position) for x in self.data])
@@ -298,7 +309,7 @@ class AutofocusWidget(QWidget):
             # calculate required movement
             self.required_movement = (self.locked_position - self.current_z) * 0.001  # movement is in um
 
-            if np.abs(self.required_movement) > self.max_movement:  # change back to 0.4
+            if np.abs(self.required_movement) > self.max_movement:
                 print("Movement too big. No movement.")
                 # Disengage the lock button
                 self.lock_button.setChecked(False)
@@ -333,7 +344,6 @@ class AutofocusWidget(QWidget):
         if self.lock_button.isChecked():
             self.lock_button.setChecked(False)
 
-    # TODO: check if this work on the microscope.
     def _recall_surface(self):
         """
         Command to look for a surface.
@@ -418,21 +428,3 @@ class AutofocusWidget(QWidget):
             self.CameraHandler.guessx = self.locked_position_guess_x
             self.CameraHandler.guessy = self.locked_position_guess_y
             self.CameraHandler.fit_profiles = True
-
-
-def test_function():
-    app = QApplication([])
-    widget = AutofocusWidget()
-
-    # settings = {"exposure_time": 100, "gain": 1, "roi": [0, 0, 1528, 1528], "p1": 1, "p0": 0}
-    #
-    # widget = SettingsPanel(settings)
-    widget.show()
-    app.exec()
-    return widget
-
-
-if __name__ == "__main__":
-    # mmc = CMMCorePlus.instance()
-    # mmc.loadSystemConfiguration()  # load demo configuration
-    test_function()

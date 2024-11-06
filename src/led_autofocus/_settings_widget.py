@@ -4,6 +4,20 @@ import json
 from pathlib import Path
 
 class SettingsPanel(QWidget):
+    """A widget for setting the parameters of the LED autofocus algorithm. Parameters get saved to a .json which is
+    then read by the autofocus widget when during initialisation.
+
+    Parameters
+    ----------
+    current_settings : dict
+        A dictionary containing the current settings of the autofocus algorithm. If None, the default settings are used.
+
+    Methods
+    -------
+    update_settings()
+        Updates the settings in the .json file with the values in the input fields
+    """
+
     def __init__(self, current_settings=None):
         super().__init__()
         # Set window title
@@ -96,6 +110,20 @@ class SettingsPanel(QWidget):
         print("Settings updated")
 
 class InputLine(QWidget):
+    """Convenience class for creating a label and input line in a single widget
+
+    Parameters
+    ----------
+    labelname : str
+        The name of the label
+    initial_value : str
+        The initial value of the input line
+
+    Methods
+    -------
+    get_value()
+        Returns the value of the input line as a float
+    """
     def __init__(self, labelname="Input", initial_value=""):
         super().__init__()
 
@@ -122,14 +150,3 @@ class InputLine(QWidget):
     def get_value(self):
         return float(self.input.text())
 
-
-def test_function():
-    app = QApplication([])
-    widget = SettingsPanel()
-
-    widget.show()
-    app.exec()
-    return widget
-
-if __name__ == "__main__":
-    test_function()
