@@ -27,7 +27,6 @@ class AutofocusWidget(QWidget):
         self.max_size = [550, 550]
         self.setGeometry(100, 100, 550, 350)
         self.min_size = self.size()
-        print(self.min_size)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.MinimumExpanding)
         self.setWindowTitle("Autofocus App")
 
@@ -225,8 +224,6 @@ class AutofocusWidget(QWidget):
                 self.locked_position_guess_x = self.CameraHandler.guessx
                 self.locked_position_guess_y = self.CameraHandler.guessy
 
-                # self.get_lock_position()
-
             self.lock_button.setText("Definitely focused!")
             self.lock_button.setStyleSheet("font: italic bold; color: white; background-color: green;")
         elif not self.lock_button.isChecked():
@@ -299,10 +296,17 @@ class AutofocusWidget(QWidget):
                 self.y_fit_plot.clear()
 
         if self.monitor_button.isChecked():
-            # logging.info(f"Monitoring! Current position is: {self.current_z}")
             self.monitor_curve.setData(self.time, self.data)
             if self.lock_button.isChecked():
                 self.locked_position_curve.setData(self.time, [(x * 0 + self.locked_position) for x in self.data])
+
+        # calculate the position
+        if self.lock_button.isChecked() or self.monitor_button.isChecked():
+            self.current_z = self._calculate_position(self.CameraHandler.guessx, self.CameraHandler.guessy)
+
+            # and append it to the data
+            self.data.append(self.current_z)
+            self.time.append(self.ptr * self.settings["update_interval_s"])
 
         # update position
         if self.lock_button.isChecked():
@@ -395,9 +399,6 @@ class AutofocusWidget(QWidget):
                 mean_distance_squared_y = np.mean(np.power(difference_y, 2))
 
                 current_pixel_distance = mean_distance_squared_x + mean_distance_squared_y
-
-
-                logging.info(f"Current pixel distance is: {current_pixel_distance}")
 
                 pixel_distances.append(current_pixel_distance)
 
