@@ -10,7 +10,7 @@ No specific qt backend is specified in the requirements, so you will have to ins
 To install, clone the repository, navigate to it in the terminal and then run `pip install .`
 
 Example and calibration codes are in the `examples` folder. More information on components, build instructions and 
-usage is in the documentation.
+usage is in the documentation: https://simonecoppola.github.io/led-autofocus/
 
 The project is very much in the early stages so bugs are likely.
 
