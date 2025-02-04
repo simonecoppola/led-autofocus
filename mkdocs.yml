@@ -53,6 +53,8 @@ markdown_extensions:
   - pymdownx.tilde
   - codehilite
   - md_in_html
+  - def_list
+
 
 watch:
   - src/led_autofocus
@@ -93,4 +95,3 @@ nav:
   - 'list_of_components.md'
   - 'build_instructions.md'
   - 'usage.md'
-  - 'calibration.md'
