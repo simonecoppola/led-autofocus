@@ -1,6 +1,6 @@
 import time
 
-from qtpy.QtWidgets import (QApplication, QWidget, QPushButton, QHBoxLayout, QGridLayout, QSizePolicy)
+from qtpy.QtWidgets import (QWidget, QPushButton, QHBoxLayout, QGridLayout, QSizePolicy)
 import pyqtgraph as pg
 from pypylon import pylon
 from pyqtgraph.Qt import QtCore
